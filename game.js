@@ -5,7 +5,7 @@
 const W = 800;
 const H = 600;
 const STORAGE_KEY = 'se-movio-records-v1';
-const MATCH_MS = 90000;
+const MATCH_MS = 75000;
 const MAX_RECORDS = 10;
 
 // DO NOT replace existing keys — they match the physical arcade cabinet wiring.
@@ -79,22 +79,23 @@ const DOORS = [
 // El temblor: cada grado cambia una sola regla.
 const GRADOS = [
   { t: 0, g: 3, txt: '¿SE MOVIÓ?', amp: 1, drop: 0 },
-  { t: 15000, g: 4, txt: 'NAH', amp: 1.5, drop: 0 },
-  { t: 30000, g: 5, txt: 'TA TEMBLANDO', amp: 2, drop: 2600 },
-  { t: 45000, g: 6, txt: 'YA PO, AHORA SÍ', amp: 3, drop: 1700, tele: true },
-  { t: 60000, g: 7, txt: '¡AL MARCO DE LA PUERTA!', amp: 3.5, drop: 1400, breaks: true },
-  { t: 75000, g: 8, txt: 'NO FUE NADA', amp: 4, drop: 1100, lateral: true },
+  { t: 10000, g: 4, txt: 'NAH', amp: 1.5, drop: 0 },
+  { t: 20000, g: 5, txt: 'TA TEMBLANDO', amp: 2, drop: 2600 },
+  { t: 32000, g: 6, txt: 'YA PO, AHORA SÍ', amp: 3, drop: 1700, tele: true },
+  { t: 45000, g: 7, txt: '¡AL MARCO DE LA PUERTA!', amp: 3.5, drop: 1400, breaks: true },
+  { t: 58000, g: 8, txt: 'NO FUE NADA', amp: 4, drop: 1100, lateral: true },
 ];
 
 // Lo que se cae de la once.
 const OBJS = {
-  tetera: { w: 26, h: 22, dmg: 10, brk: true },
-  taza: { w: 16, h: 14, dmg: 6, brk: true },
-  pan: { w: 24, h: 14, dmg: 5, brk: false },
-  mermelada: { w: 16, h: 20, dmg: 8, brk: true },
-  tele: { w: 44, h: 38, dmg: 16, brk: true, heavy: true },
+  tetera: { w: 26, h: 22, dmg: 10, brk: true, word: '¡TETERAZO!' },
+  taza: { w: 16, h: 14, dmg: 6, brk: true, word: '¡TAZAZO!' },
+  pan: { w: 30, h: 16, dmg: 5, brk: false, word: '¡MARRAQUETAZO!' },
+  mermelada: { w: 16, h: 20, dmg: 8, brk: true, word: '¡MERMELADAZO!' },
+  tele: { w: 44, h: 38, dmg: 16, brk: true, heavy: true, word: '¡TELEVISORAZO!' },
 };
 const DROP_KINDS = ['tetera', 'taza', 'pan', 'mermelada', 'taza', 'pan'];
+const KO_TXT = ['¡SE FUE AL DEPTO DE ABAJO!', '¡CAYÓ AL PATIO DE LUZ!', '¡SALIÓ A COMPRAR PAN!', '¡RECLAMO AL CONSERJE!', '¡LO SACÓ DEL EDIFICIO!'];
 
 const config = {
   type: Phaser.AUTO,
@@ -196,6 +197,7 @@ function makeFighter(i, cpu) {
     vy: 0,
     face: i ? -1 : 1,
     ground: true,
+    plat: FLOOR,
     jumps: 1,
     susto: 0,
     lives: 2,
@@ -221,7 +223,8 @@ function makeFighter(i, cpu) {
 function startMatch(s, humans, demo) {
   s.mode = demo ? 'demo' : 'play';
   s.f = [makeFighter(0, !humans[0]), makeFighter(1, !humans[1])];
-  s.mt = 0;
+  // El attract parte cerca del grado 6 para mostrar el "¡TEMBLOR!".
+  s.mt = demo ? 26000 : 0;
   s.phase = -1;
   s.dropT = 0;
   s.sudden = false;
@@ -231,6 +234,7 @@ function startMatch(s, humans, demo) {
   s.maxG = 3;
   s.lat = { dir: 1, t: 0, k: 0 };
   s.warned = -1;
+  s.countdown = null;
   for (const p of PLATS) {
     p.broken = false;
   }
@@ -240,6 +244,8 @@ function startMatch(s, humans, demo) {
   if (!demo) {
     banner(s, '¡A PELEAR!', '#ffd23f');
     sfx(s, 'select');
+    const help = txt(s, W / 2, 575, 'B1 GOLPE · B2 AGARRA/LANZA · B3 ¡QUIETO!', 22, '#ffffff', 6).setDepth(30);
+    s.tweens.add({ targets: help, alpha: 0, delay: 8000, duration: 500, onComplete: () => help.destroy() });
   }
 }
 
@@ -281,6 +287,7 @@ function humanIntent(s, f) {
     r: h[p + 'R'],
     d: h[p + 'D'],
     up: pr[p + 'U'],
+    uh: h[p + 'U'],
     // La fila de abajo repite la de arriba.
     b1: pr[p + '1'] || pr[p + '4'],
     b2: pr[p + '2'] || pr[p + '5'],
@@ -311,6 +318,7 @@ function stepFighter(s, f, o, inp, dt) {
   }
 
   const free = f.stun <= 0 && f.daze <= 0;
+  f.inp = inp;
   f.stun = Math.max(0, f.stun - ms);
   f.daze = Math.max(0, f.daze - ms);
 
@@ -344,6 +352,9 @@ function stepFighter(s, f, o, inp, dt) {
     readButtons(s, f, o, inp);
   } else if (f.ground) {
     f.vx = approach(f.vx, 0, 1600 * dt);
+  } else if (f.stun > 0) {
+    // Deriva: al salir volando todavía se puede pelear por volver.
+    f.vx += ((inp.r ? 1 : 0) - (inp.l ? 1 : 0)) * 600 * dt;
   }
 
   if (!f.ground) {
@@ -353,9 +364,9 @@ function stepFighter(s, f, o, inp, dt) {
   // Grado 8: el piso "se inclina" y empuja hacia un lado, salvo en el marco de la puerta.
   const g = GRADOS[Math.max(0, s.phase)];
   const inDoor = f.ground && f.plat === FLOOR && DOORS.some((d) => f.x > d.x1 && f.x < d.x2);
-  if (inDoor && s.phase >= 2) {
+  if (inDoor && g.lateral) {
     f.refugio += ms;
-    gainCalma(s, f, 12 * dt);
+    if (f.refugio < 2000) gainCalma(s, f, 12 * dt);
   } else {
     f.refugio = 0;
   }
@@ -383,6 +394,10 @@ function stepFighter(s, f, o, inp, dt) {
           puff(s, f.x, p.y, 6, C.wall2);
           continue;
         }
+        if (f.vy > 500) {
+          puff(s, f.x, p.y, 6, C.wall2);
+          sfx(s, 'thud');
+        }
         f.y = p.y;
         f.vy = 0;
         f.ground = true;
@@ -407,11 +422,17 @@ function readButtons(s, f, o, inp) {
   if (inp.b1) f.b1t = t;
   if (inp.b2) f.b2t = t;
   const combo = (inp.b1 && (inp.h2 || t - f.b2t < 120)) || (inp.b2 && (inp.h1 || t - f.b1t < 120));
-  if (combo && f.calma >= 100 && (!f.act || f.act.t < 90)) {
-    remezon(s, f, o);
+  if (combo && f.calma >= 100 && (!f.act || (f.act.k !== 'hold' && f.act.t < 90))) {
+    f.calma = 0;
+    f.act = { k: 'remezon', t: 0 };
+    sfx(s, 'charge');
     return;
   }
-  if (f.act && f.act.k !== 'hold') {
+  if (f.act && f.act.k === 'hold') {
+    if (inp.b2) f.act.t = 999;
+    return;
+  }
+  if (f.act) {
     return;
   }
   if (f.hold && (inp.b1 || inp.b2)) {
@@ -470,15 +491,24 @@ function resolveAction(s, f, o) {
     if (a.t > 460) f.act = null;
   } else if (a.k === 'hold') {
     if (a.t > 240) {
-      const v = s.f[1 - f.i];
-      v.grabbedBy = null;
+      // Se lanza hacia donde apunte el joystick: adelante, atrás o arriba.
+      const inp = f.inp || {};
+      const dir = inp.r ? 1 : inp.l ? -1 : f.face;
+      o.grabbedBy = null;
       f.act = null;
-      hit(s, v, f.face, 12, 260, 8, 0.9);
+      hit(s, o, dir, 16, 260, 8, inp.uh ? 1.3 : 0.8);
       f.sty += 100;
       sfx(s, 'throw');
     }
+  } else if (a.k === 'remezon') {
+    if (a.t >= 130) {
+      f.act = null;
+      remezon(s, f, o);
+    }
   } else if (a.k === 'parry') {
     if (a.t > 420) f.act = null;
+  } else if (a.k === 'throwing') {
+    if (a.t > 220) f.act = null;
   }
 }
 
@@ -491,7 +521,7 @@ function parried(s, f, attacker) {
   f.sty += 200;
   gainCalma(s, f, 34);
   attacker.act = null;
-  attacker.daze = 450;
+  attacker.daze = 350;
   attacker.vx = -attacker.face * 220;
   s.stop = 120;
   ring(s, f.x, f.y - 40, C.white);
@@ -505,23 +535,26 @@ function hit(s, t, dir, dmg, base, growth, ang) {
   t.vx = dir * kb * Math.cos(ang);
   t.vy = -kb * Math.sin(ang) - 120;
   t.stun = Math.min(900, 120 + t.susto * 2.2);
+  const v = s.f[1 - t.i];
+  if (v.grabbedBy === t) v.grabbedBy = null;
   t.act = null;
   t.ground = false;
   dropHold(t);
   s.stop = 60 + Math.min(60, dmg * 4);
   s.kick = Math.min(10, 2 + t.susto / 20);
   const big = t.susto > 90;
-  if (big) {
-    s.flash = 0.35;
-  }
+  if (big) flash(s, 0.35);
   puff(s, t.x, t.y - 36, big ? 16 : 9, big ? C.yellow : C.white);
-  sfx(s, big ? 'bighit' : 'hit');
+  sfx(s, big ? 'bighit' : 'hit', t.susto);
 }
 
 function remezon(s, f, o) {
-  f.calma = 0;
-  f.act = null;
-  s.flash = 0.6;
+  const near = o.out <= 0 && o.inv <= 0 && Math.hypot(o.x - f.x, o.y - f.y) < 190;
+  if (near && isParrying(o)) {
+    parried(s, o, f);
+    return;
+  }
+  flash(s, 0.6);
   s.stop = 140;
   s.kick = 12;
   ring(s, f.x, f.y - 30, C.yellow, 30);
@@ -533,9 +566,17 @@ function remezon(s, f, o) {
       ob.st = 'fall';
     }
   }
-  if (o.out <= 0 && o.inv <= 0 && Math.hypot(o.x - f.x, o.y - f.y) < 190) {
+  if (near) {
     hit(s, o, o.x >= f.x ? 1 : -1, 14, 380, 8.5, 0.75);
     f.sty += 300;
+  }
+}
+
+// Tope de un destello cada 333 ms, por fotosensibilidad.
+function flash(s, a) {
+  if (s.now - (s.flashT || 0) > 333) {
+    s.flash = a;
+    s.flashT = s.now;
   }
 }
 
@@ -567,13 +608,13 @@ function checkOut(s, f) {
   for (let k = 0; k < 3; k++) {
     puff(s, ex, ey, 14, [C.white, C.yellow, f.i ? C.p2 : C.p1][k]);
   }
-  s.flash = 0.5;
+  flash(s, 0.5);
   s.kick = 12;
   sfx(s, 'ko');
   if (f.lives <= 0 || s.sudden) {
     endMatch(s, o);
   } else {
-    banner(s, '¡SE FUE AL DEPTO DE ABAJO!', '#ffffff');
+    banner(s, KO_TXT[(Math.random() * KO_TXT.length) | 0], '#ffffff');
   }
 }
 
@@ -626,7 +667,7 @@ function updateQuake(s, dt) {
       s.hud.phrasePop = s.now;
     }
     if (g.tele) {
-      spawnObj(s, 'tele', 604, 230);
+      spawnObj(s, 'tele', 400, -40);
     }
     if (g.breaks) {
       for (const p of PLATS) {
@@ -657,6 +698,17 @@ function updateQuake(s, dt) {
     s.lat.k = Math.sin((s.lat.t / 3000) * Math.PI);
   } else {
     s.lat.k = 0;
+  }
+  // Desde el grado 6: polvo del techo y retumbos.
+  if (g.g >= 6) {
+    s.rumbleT = (s.rumbleT || 0) - dt * 1000;
+    if (s.rumbleT <= 0) {
+      s.rumbleT = 1200;
+      sfx(s, 'rumble', g.g - 2);
+    }
+    if (Math.random() < dt * 8) {
+      s.parts.push({ x: 110 + Math.random() * 580, y: 154, vx: 0, vy: 40, l: 1.2, c: C.wall2, z: 3 });
+    }
   }
   if (s.phase >= 0) {
     for (const f of s.f) {
@@ -694,9 +746,6 @@ function throwObj(s, f) {
   ob.vx = f.face * (heavy ? 520 : 780);
   ob.vy = -150;
   f.act = { k: 'throwing', t: 0 };
-  setTimeout(() => {
-    if (f.act && f.act.k === 'throwing') f.act = null;
-  }, 220);
   sfx(s, 'throw');
 }
 
@@ -732,6 +781,7 @@ function stepObjects(s, dt) {
           } else {
             hit(s, f, Math.sign(ob.vx), d.dmg, 260, d.heavy ? 8 : 6, 0.55);
             ob.own.sty += 150;
+            banner(s, d.word, '#ffd23f', f.x, f.y - 120, 700);
             breakObj(s, i, ob);
           }
           break;
@@ -756,6 +806,7 @@ function stepObjects(s, dt) {
             ob.y = p.y;
             ob.vy = ob.st === 'fly' ? -ob.vy * 0.3 : 0;
             ob.vx *= 0.5;
+            if (ob.st !== 'ground') ob.gt = s.mt;
             ob.st = 'ground';
             ob.own = null;
             ob.rot = 0;
@@ -768,7 +819,7 @@ function stepObjects(s, dt) {
       ob.vx = approach(ob.vx, 0, 600 * dt);
       ob.st = PLATS.some((p) => !p.broken && Math.abs(ob.y - p.y) < 2 && ob.x > p.x1 && ob.x < p.x2) ? 'ground' : 'fall';
     }
-    if (ob.y > H + 60 || ob.x < -80 || ob.x > W + 80) {
+    if (ob.y > H + 60 || ob.x < -80 || ob.x > W + 80 || (ob.st === 'ground' && s.mt - ob.gt > 8000)) {
       s.objs.splice(i, 1);
     }
   }
@@ -787,7 +838,7 @@ function cpuIntent(s, f, o, dt) {
   const ai = f.ai;
   ai.t -= dt * 1000;
   const w = ai.w;
-  const out = { l: w.l, r: w.r, d: false, up: false, b1: false, b2: false, b3: false, h1: false, h2: false, dn: false };
+  const out = { l: w.l, r: w.r, d: false, up: false, uh: false, b1: false, b2: false, b3: false, h1: false, h2: false, dn: false };
   const dx = o.x - f.x;
   const adx = Math.abs(dx);
   const toward = (x) => {
@@ -881,7 +932,8 @@ function endMatch(s, winner) {
     const sc = score(f);
     const qualifies = s.records.top.length < MAX_RECORDS || sc > s.records.top[s.records.top.length - 1].s;
     if (!f.cpu && (f === winner || qualifies)) {
-      s.entries.push({ f, letters: (s.lastName && s.lastName[f.i]) || [0, 0, 0], pos: 0, done: false, cool: 0 });
+      const def = f.i ? [15, 14, 22] : [15, 20, 12];
+      s.entries.push({ f, letters: (s.lastName && s.lastName[f.i]) || def, pos: 0, done: false, cool: 0 });
     }
   }
   showEnd(s);
@@ -931,7 +983,7 @@ function updateEnd(s, dt) {
   }
   refreshEnd(s);
   const all = s.entries.every((e) => e.done);
-  const start = pr.START1 || pr.START2;
+  const start = (pr.START1 || pr.START2) && s.endT > 1500;
   if ((all || start || s.endT > 20000) && !s.saved) {
     saveEntries(s);
   }
@@ -952,7 +1004,7 @@ function saveEntries(s) {
     const n = e.letters.map((c) => String.fromCharCode(65 + c)).join('');
     s.lastName[e.f.i] = e.letters.slice();
     r.top.push({ n, s: score(e.f), g: s.maxG });
-    if (e.f === s.winner) {
+    if (e.f === s.winner && s.f.every((f) => !f.cpu)) {
       r.rey = r.rey && r.rey.n === n ? { n, r: r.rey.r + 1 } : { n, r: 1 };
     }
   }
@@ -1103,7 +1155,7 @@ function render(s, t) {
   s.kick = Math.max(0, s.kick - 0.6);
   s.world.x = W / 2 + (Math.random() - 0.5) * amp;
   s.world.y = H / 2 + (Math.random() - 0.5) * amp;
-  s.world.rotation = s.lat.k * s.lat.dir * 0.07;
+  s.world.rotation = s.lat.k * s.lat.dir * 0.04;
 
   // Repisas y lámpara.
   for (const p of PLATS) {
@@ -1123,10 +1175,21 @@ function render(s, t) {
   g.fillStyle(C.ink).fillTriangle(lx - 20, ly + 18, lx + 20, ly + 18, lx, ly - 2);
   g.fillStyle(C.yellow).fillCircle(lx, ly + 20, 6);
 
-  for (const ob of s.objs) drawObj(g, ob);
+  if (ph.g >= 6) {
+    // Grieta en la pared.
+    g.lineStyle(3, C.wood2).beginPath();
+    g.moveTo(560, 152);
+    for (const [cx, cy] of [[548, 190], [566, 214], [552, 250], [574, 280]]) g.lineTo(cx, cy);
+    g.strokePath();
+  }
+  for (const ob of s.objs) drawObj(s, g, ob);
   for (const f of s.f) drawFighter(s, g, f, t);
   for (const p of s.parts) {
     g.fillStyle(p.c, Math.min(1, p.l * 3)).fillRect(p.x - p.z / 2, p.y - p.z / 2, p.z, p.z);
+  }
+  // Grado 7: parpadea la luz.
+  if (ph.g === 7 && s.mode !== 'end' && Math.sin(t / 37) > 0.93) {
+    g.fillStyle(C.ink, 0.35).fillRect(100, 150, 600, 350);
   }
   drawHud(s, t);
 }
@@ -1191,6 +1254,10 @@ function drawFighter(s, g, f, t) {
     if (f.act.t < 170) {
       g.lineStyle(4, C.white, 1 - f.act.t / 170).strokeCircle(x, y - 40, 44);
     }
+  } else if (a === 'remezon') {
+    g.lineStyle(6, C.yellow, 0.9).strokeCircle(x, y - 40, 20 + f.act.t);
+    box(g, x - 22, y - 76, 8, 30, col);
+    box(g, x + 14, y - 76, 8, 30, col);
   } else if (hurt) {
     box(g, x - 22, y - 70, 8, 24, col);
     box(g, x + 14, y - 70, 8, 24, col);
@@ -1231,8 +1298,9 @@ function drawFighter(s, g, f, t) {
   tag.setText(f.cpu ? 'CPU' : 'P' + (f.i + 1));
 }
 
-function drawObj(g, ob) {
+function drawObj(s, g, ob) {
   const d = OBJS[ob.k];
+  if (ob.st === 'ground' && s.mt - ob.gt > 7000 && ((s.now / 90) | 0) % 2) return;
   const x = ob.x;
   const y = ob.y - d.h / 2;
   if (ob.k === 'tele') {
@@ -1247,9 +1315,13 @@ function drawObj(g, ob) {
     box(g, x - 7, y - 6, 12, 13, C.white);
     g.lineStyle(3, C.ink).strokeCircle(x + 8, y, 4);
   } else if (ob.k === 'pan') {
-    g.fillStyle(C.ink).fillEllipse(x, y, 28, 18);
-    g.fillStyle(0xd9a35b).fillEllipse(x, y, 22, 12);
-    g.fillStyle(0x6fa83a).fillRect(x - 8, y - 3, 16, 3);
+    // Marraqueta: cuatro puntas con la palta asomando.
+    for (const o of [-8, 8]) {
+      g.fillStyle(C.ink).fillEllipse(x + o, y, 20, 20);
+      g.fillStyle(0xd9a35b).fillEllipse(x + o, y, 14, 14);
+    }
+    g.fillStyle(0x6fa83a).fillRect(x - 12, y - 1, 24, 4);
+    g.lineStyle(2, 0x8a5a24).lineBetween(x, y - 7, x, y + 7);
   } else {
     box(g, x - 7, y - 9, 14, 18, 0xb0243a);
     g.fillStyle(C.white).fillRect(x - 7, y - 9, 14, 4);
@@ -1271,8 +1343,9 @@ function createHud(s) {
     const color = i ? '#ff8a1f' : '#2ec7ff';
     return {
       name: txt(s, x, 24, 'P' + (i + 1), 22, color, 5).setDepth(11),
-      pct: txt(s, x, 88, '0%', 56, '#ffffff', 9).setDepth(11),
-      score: txt(s, x, 138, '0', 16, '#ffffff', 4).setDepth(11),
+      pct: txt(s, x, 84, '0%', 56, '#ffffff', 9).setDepth(11).setStroke(color, 9),
+      score: txt(s, x, 132, '0', 28, '#ffffff', 6).setDepth(11),
+      calma: txt(s, x, 228, 'CALMA', 14, '#ffffff', 4).setDepth(11),
     };
   });
   // Scanlines suaves.
@@ -1320,15 +1393,19 @@ function drawHud(s, t) {
     side.pct.setText(Math.round(f.susto) + '%');
     side.pct.setColor(f.susto >= 100 ? '#ff3b3b' : f.susto >= 50 ? '#ffd23f' : '#ffffff');
     side.score.setText(String(score(f)));
-    // Vidas: cabezas grandes.
+    // Vidas: cabezas grandes con la polera de cada uno.
     for (let k = 0; k < 2; k++) {
-      const cx = x - 26 + k * 52;
-      circ(g, cx, 170, 14, k < f.lives ? C.skin : 0x444455);
-      if (k < f.lives) g.fillStyle(C.hair).fillRect(cx - 13, 156, 26, 7);
+      const cx = x - 28 + k * 56;
+      circ(g, cx, 174, 20, k < f.lives ? (i ? C.p2 : C.p1) : 0x444455);
+      if (k < f.lives) g.fillStyle(C.skin).fillCircle(cx, 178, 12);
     }
-    // Barra de calma.
-    g.fillStyle(C.ink).fillRect(x - 72, 194, 144, 14);
-    g.fillStyle(f.calma >= 100 ? (((t / 100) | 0) % 2 ? C.yellow : C.white) : i ? C.p2 : C.p1).fillRect(x - 70, 196, 1.4 * f.calma, 10);
+    // Barra de calma: llena, se pide el remezón.
+    const full = f.calma >= 100;
+    g.fillStyle(C.white).fillRect(x - 74, 198, 148, 18);
+    g.fillStyle(C.ink).fillRect(x - 72, 200, 144, 14);
+    g.fillStyle(full ? (((t / 100) | 0) % 2 ? C.yellow : C.white) : i ? C.p2 : C.p1).fillRect(x - 70, 202, 1.4 * f.calma, 10);
+    side.calma.setText(full ? '¡B1+B2: REMEZÓN!' : 'CALMA');
+    side.calma.setColor(full ? '#ffd23f' : '#ffffff');
   });
 
   s.flash = Math.max(0, s.flash - 0.04);
@@ -1339,19 +1416,20 @@ function drawHud(s, t) {
 
 function createOverlays(s) {
   const t = s.add.container(0, 0).setDepth(20);
-  t.add(s.add.rectangle(W / 2, 330, W, 330, C.ink, 0.72));
-  const title = txt(s, W / 2, 222, '¿SE MOVIÓ?', 76, '#ffd23f', 12);
+  t.add(s.add.rectangle(W / 2, 250, W, 140, C.ink, 0.55));
+  t.add(s.add.rectangle(W / 2, 572, W, 56, C.ink, 0.7));
+  const title = txt(s, W / 2, 232, '¿SE MOVIÓ?', 76, '#ffd23f', 12);
   t.add(title);
   s.tweens.add({ targets: title, angle: { from: -2, to: 2 }, duration: 90, yoyo: true, repeat: -1 });
-  t.add(txt(s, W / 2, 288, 'TEMBLOR GRADO 8', 26, '#ffffff', 6));
-  const start = txt(s, W / 2, 470, 'PRESIONA START', 34, '#2ec7ff', 7);
+  t.add(txt(s, W / 2, 296, 'TEMBLOR GRADO 8', 26, '#ffffff', 6));
+  const start = txt(s, W / 2, 560, 'PRESIONA START', 30, '#2ec7ff', 7);
   t.add(start);
   s.tweens.add({ targets: start, alpha: 0.15, duration: 450, yoyo: true, repeat: -1 });
-  s.info = txt(s, W / 2, 380, '', 20, '#ffffff', 5);
+  s.info = txt(s, W / 2, 588, '', 18, '#ffffff', 5);
   t.add(s.info);
   s.title = t;
   s.infoPage = 0;
-  s.time.addEvent({ delay: 3500, loop: true, callback: () => refreshRecords(s, true) });
+  s.time.addEvent({ delay: 2500, loop: true, callback: () => refreshRecords(s, true) });
 
   const e = s.add.container(0, 0).setDepth(25);
   e.add(s.add.rectangle(W / 2, H / 2, W, H, C.ink, 0.8));
@@ -1364,17 +1442,15 @@ function createOverlays(s) {
 }
 
 function refreshRecords(s, advance) {
-  if (advance) s.infoPage = (s.infoPage + 1) % 3;
   const r = s.records;
-  let body;
-  if (s.infoPage === 0) {
-    body = 'B1 GOLPE   B2 AGARRAR/LANZAR   B3 ¡QUIETO!\nB1+B2 CON LA BARRA LLENA: ¡REMEZÓN!\nSÁCALO DE LA PANTALLA';
-  } else if (s.infoPage === 1) {
-    body = 'LOS QUE AGUANTARON\n' + (r.top.length ? r.top.slice(0, 4).map((e, i) => `${i + 1}. ${e.n}  ${e.s}  GRADO ${e.g}`).join('\n') : 'NADIE TODAVÍA');
-  } else {
-    body = r.rey ? `REY DEL MUEBLE\n${r.rey.n}\n${r.rey.r} SEGUIDAS` : 'REY DEL MUEBLE\nSE BUSCA';
-  }
-  s.info.setText(body);
+  const pages = [
+    'SÁCALO DE LA PANTALLA ANTES DEL GRADO 8',
+    'B1 GOLPE · B2 AGARRA/LANZA · B3 ¡QUIETO!',
+    'BARRA DE CALMA LLENA + B1+B2: ¡REMEZÓN!',
+    r.rey ? `REY DEL MUEBLE: ${r.rey.n} · ${r.rey.r} SEGUIDAS` : 'REY DEL MUEBLE: SE BUSCA',
+  ].concat(r.top.slice(0, 3).map((e, i) => `LOS QUE AGUANTARON ${i + 1}. ${e.n} ${e.s} PTS · GRADO ${e.g}`));
+  if (advance) s.infoPage = (s.infoPage + 1) % pages.length;
+  s.info.setText(pages[s.infoPage % pages.length]);
 }
 
 function showEnd(s) {
@@ -1389,7 +1465,8 @@ function refreshEnd(s) {
   const demo = s.f.every((f) => f.cpu);
   s.endTitle.setText((w.cpu && !demo ? 'GANA LA CPU' : 'GANA ' + (w.cpu ? 'CPU ' + (w.i + 1) : 'P' + (w.i + 1))) + (w.comeback ? '\n¡REMONTADA!' : ''));
   s.endTitle.setColor(w.i ? '#ff8a1f' : '#2ec7ff');
-  s.endSub.setText(`SOBREVIVIÓ: GRADO ${s.maxG}\nSIN DAÑOS QUE LAMENTAR`);
+  const head = s.maxG >= 8 ? '¡Y NI SE DERRAMÓ EL TÉ!' : s.maxG >= 6 ? 'SIN DAÑOS QUE LAMENTAR' : 'ESO NI ERA TEMBLOR';
+  s.endSub.setText(`SOBREVIVIÓ: GRADO ${s.maxG}\n${head}`);
   let body = s.f.map((f) => `${f.cpu ? 'CPU' : 'P' + (f.i + 1)}  ${score(f)} PTS`).join('      ');
   for (const e of s.entries) {
     const n = e.letters.map((c, k) => (k === e.pos && !e.done && ((s.now / 200) | 0) % 2 ? '_' : String.fromCharCode(65 + c))).join(' ');
@@ -1500,18 +1577,19 @@ function noise(s, dur, vol, freq, type, delay) {
 }
 
 function sfx(s, k, n) {
-  if (!s.audio || s.mode === 'demo') {
+  if (!s.audio || (s.mode === 'demo' && k !== 'alert' && k !== 'rumble' && k !== 'ko')) {
     return;
   }
+  s.master.gain.value = s.mode === 'demo' ? 0.2 : 0.5;
   try {
     if (k === 'hit') {
       noise(s, 0.12, 0.5, 1400);
-      tone(s, 'square', 220, 60, 0.12, 0.25);
+      tone(s, 'square', 180 + (n || 0) * 2, 60, 0.12, 0.25);
     } else if (k === 'bighit') {
       noise(s, 0.25, 0.7, 900);
       tone(s, 'sawtooth', 160, 40, 0.3, 0.35);
     } else if (k === 'jump') {
-      tone(s, 'square', 300, 640, 0.09, 0.07);
+      tone(s, 'square', 300, 640, 0.09, 0.12);
     } else if (k === 'whiff') {
       noise(s, 0.07, 0.12, 2500, 'highpass');
     } else if (k === 'parry') {
@@ -1536,6 +1614,8 @@ function sfx(s, k, n) {
     } else if (k === 'remezon') {
       tone(s, 'sine', 90, 30, 0.7, 0.6);
       noise(s, 0.6, 0.6, 400);
+    } else if (k === 'charge') {
+      tone(s, 'sawtooth', 120, 600, 0.14, 0.2);
     } else if (k === 'select') {
       tone(s, 'square', 880, 900, 0.05, 0.08);
     } else if (k === 'win') {
