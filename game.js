@@ -57,7 +57,7 @@ const FONT = {};
 const FONT_SRC =
   'A25755B65656C34443D65556E74647F74644G34553H55755I72227J11152K55655L44447M57755N65555O25552P65644Q25563R65655S34216T72222U55557V55552W55775X55255Y55222Z71247' +
   '075557126227261247361216455711574616634757771122875757975716' +
-  '!22202¡20222?61202¿20243.00002,00024:02020%51245-00700+02720/11244·00200_00007';
+  '!22202¡20222?61202¿20243.00002,00024:02020%51245-00700+02720/11244·00200_00007(12221)42224';
 for (let i = 0; i < FONT_SRC.length; i += 6) {
   FONT[FONT_SRC[i]] = [...FONT_SRC.slice(i + 1, i + 6)].map(Number);
 }
@@ -116,19 +116,6 @@ const CHARS = [
     mouth: 6,
   },
   {
-    n: 'LUCHO',
-    t: 'EQUILIBRADO',
-    spd: 1,
-    jmp: 1,
-    wt: 1,
-    pow: 1,
-    vic: 'thumb',
-    pal: { p: 0x8d93a8, P: 0x5e6378, d: 0x5e6378, l: 0x2c3160, w: WHITE, f: 0x7a4a2a, h: 0x3b2418 },
-    head: ['....kkkkkk....', '...khhhhhhkk..', '..khhhhhhhhhk.', '..khhsssssssk.', '..khssssssssk.', '..kSssssssssk.', '..kSsshhhhhhk.', '...kSsssssssk.', '....kkkkkkkk..'],
-    torso: ['..kkppppkk..', '.kppppPdppk.', '.kppppPdppk.', '.kpPPPPdPPk.', '.kkkkkkkkkk.'],
-    mouth: 7,
-  },
-  {
     n: 'CHEPO',
     t: 'PESADO',
     spd: 0.9,
@@ -166,19 +153,6 @@ const CHARS = [
     pal: { p: 0xd9a53a, P: 0xa87a22, d: 0x7a4a2a, l: 0x3b5a8a, w: WHITE, f: WHITE, h: 0x5a3a24, b: 0x3f7f6f, B: 0x2c5a4f },
     head: ['....kkkkkk....', '...kbbbbbbk...', '..kbbbbbbbbk..', '..kbBbBbBbBk..', '..khssssssssk.', '..kSssssssssk.', '..kShhsssshhk.', '...khhhhhhhk..', '....kkkkkkk...'],
     torso: ['..kkppppkk..', '.kpdpppppPk.', '.kppdppppPk.', '.kpppdpppPk.', '.kkkkkkkkkk.'],
-    mouth: 6,
-  },
-  {
-    n: 'ROSA',
-    t: 'AGUANTA',
-    spd: 0.92,
-    jmp: 0.95,
-    wt: 1.22,
-    pow: 1.05,
-    vic: 'flex',
-    pal: { p: 0xc04a3a, P: 0x8a2f2a, d: WHITE, l: 0x4a3a2a, w: 0x4f2e19, f: 0x4f2e19, h: 0x2a1a14, b: 0x3a5a9a, B: 0xe0c070 },
-    head: ['......kk......', '.....kddk.....', '...kkbbbbkk...', '..kbBbBbBbBk..', '..khssssssssk.', '.khhSsssssssk.', '.khhSsssssssk.', '.khkkSssssssk.', '.khk.kkkkkkk..'],
-    torso: ['..kkppppkk..', '.kpdpdpdpdk.', '.kppppppppk.', '.kdpdpdpdpk.', '.kkkkkkkkkk.'],
     mouth: 6,
   },
   {
@@ -338,9 +312,9 @@ const GRADOS = [
   { t: 0, g: 3, amp: 0.3, drop: 0 },
   { t: 10000, g: 4, amp: 0.5, drop: 0 },
   { t: 20000, g: 5, amp: 0.7, drop: 2600 },
-  { t: 32000, g: 6, amp: 1, drop: 1700, heavy: true },
-  { t: 45000, g: 7, amp: 1.2, drop: 1400, breaks: true },
-  { t: 58000, g: 8, amp: 1.5, drop: 1100, lateral: true },
+  { t: 32000, g: 6, amp: 1, drop: 1700, heavy: true, tilt: 0.35 },
+  { t: 45000, g: 7, amp: 1.2, drop: 1400, breaks: true, tilt: 0.6 },
+  { t: 58000, g: 8, amp: 1.5, drop: 1100, tilt: 1 },
 ];
 
 // Golpes: arranque (s), activo (a), total (e), caja [x0,x1,y0,y1] desde los pies, daño, empuje base y crecimiento, ángulo.
@@ -351,6 +325,7 @@ const MOVES = {
   sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 1.15 },
   akick: { s: 60, a: 160, e: 320, box: [1, 14, -12, -2], d: 8, b: 70, gr: 2.5, an: 0.45, air: true },
   stomp: { s: 120, a: 120, e: 380, box: [-6, 6, -4, 7], d: 10, b: 60, gr: 2.6, an: -1.2, air: true },
+  lunge: { s: 30, a: 130, e: 320, box: [0, 18, -18, -4], d: 11, b: 100, gr: 2.8, an: 0.35 },
   grab: { s: 120, a: 80, e: 400, box: [1, 12, -16, -4] },
 };
 
@@ -382,7 +357,6 @@ function create() {
   s.stop = 0;
   s.flash = 0;
   s.kick = 0;
-  s.stageIdx = 0;
   s.now = 0;
   s.idle = 0;
   s.picks = [0, 1];
@@ -501,6 +475,11 @@ function makeFighter(s, i, cpu, ci) {
     jumping: false,
     dodge: 0,
     dodged: false,
+    dashT: 0,
+    dashCd: 0,
+    airDash: false,
+    slide: 0,
+    landT: -1e9,
     susto: 0,
     lives: 2,
     act: null,
@@ -532,7 +511,10 @@ function makeFighter(s, i, cpu, ci) {
 
 function startMatch(s, humans, demo) {
   s.mode = demo ? 'demo' : 'play';
-  s.st = STAGES[s.stageIdx++ % STAGES.length];
+  let k;
+  do k = (Math.random() * STAGES.length) | 0;
+  while (STAGES[k] === s.st);
+  s.st = STAGES[k];
   s.plats = s.st.plats.map((p) => Object.assign({}, p));
   if (demo) s.picks = [(Math.random() * CHARS.length) | 0, (Math.random() * CHARS.length) | 0];
   s.f = [0, 1].map((i) => makeFighter(s, i, !humans[i], s.picks[i]));
@@ -551,8 +533,9 @@ function startMatch(s, humans, demo) {
   s.cheer = 0;
   s.idle = 0;
   s.mus = { step: 0, next: 0 };
+  s.tod = (Math.random() * 3) | 0;
   s.bg.clear();
-  s.st.bg(s.bg);
+  s.st.bg(s.bg, s.tod);
   s.help = 0;
   if (!demo) {
     say(s, s.st.n, YEL, 2200);
@@ -601,7 +584,7 @@ function humanIntent(s, f) {
   const p = 'P' + (f.i + 1) + '_';
   const h = s.controls.held;
   const pr = s.controls.pressed;
-  // La fila de abajo repite la de arriba.
+  // Fila de arriba: golpe, agarre, parry. Toda la fila de abajo es dash.
   return {
     l: h[p + 'L'],
     r: h[p + 'R'],
@@ -609,11 +592,12 @@ function humanIntent(s, f) {
     d: h[p + 'D'],
     up: pr[p + 'U'],
     dn: pr[p + 'D'],
-    b1: pr[p + '1'] || pr[p + '4'],
-    b2: pr[p + '2'] || pr[p + '5'],
-    b3: pr[p + '3'] || pr[p + '6'],
-    h1: h[p + '1'] || h[p + '4'],
-    h2: h[p + '2'] || h[p + '5'],
+    b1: pr[p + '1'],
+    b2: pr[p + '2'],
+    b3: pr[p + '3'],
+    b4: pr[p + '4'] || pr[p + '5'] || pr[p + '6'],
+    h1: h[p + '1'],
+    h2: h[p + '2'],
   };
 }
 
@@ -628,6 +612,8 @@ function stepFighter(s, f, o, inp, dt) {
   f.land = Math.max(0, f.land - ms);
   f.jbuf = Math.max(0, f.jbuf - ms);
   f.coyote = Math.max(0, f.coyote - ms);
+  f.dashCd = Math.max(0, f.dashCd - ms);
+  f.slide = Math.max(0, f.slide - ms);
   if (f.comboShow > 0) f.comboShow -= ms;
   if (f.out > 0) {
     f.out -= ms;
@@ -670,19 +656,31 @@ function stepFighter(s, f, o, inp, dt) {
   } else if (free) {
     const busy = f.act && f.act.k !== 'hold' && !(MOVES[f.act.k] && MOVES[f.act.k].air);
     const max = 118 * c.spd;
-    if (dir && !(busy && f.ground)) {
+    if (f.dashT > 0) {
+      f.dashT -= ms;
+      if (f.dashT <= 0 && f.ground) f.vx *= 0.5;
+    } else if (dir && !(busy && f.ground)) {
+      // Lo que va más rápido que el tope (dash, salto encadenado) no se frena en el aire.
       if (Math.abs(f.vx) < max || Math.sign(f.vx) !== dir) {
-        f.vx += dir * (f.ground ? 1500 : 1100) * c.spd * dt;
+        f.vx += dir * (f.ground ? 2200 : 1600) * c.spd * dt;
         if (Math.abs(f.vx) > max && Math.sign(f.vx) === dir) f.vx = dir * max;
+      } else if (f.ground && !f.slide) {
+        f.vx = approach(f.vx, dir * max, 700 * dt);
       }
       if (!f.act) f.face = dir;
     } else if (f.ground) {
-      f.vx = approach(f.vx, 0, 1500 * dt);
+      f.vx = approach(f.vx, 0, (f.slide ? 380 : 2400) * dt);
     } else if (!dir) {
-      f.vx = approach(f.vx, 0, 300 * dt);
+      f.vx = approach(f.vx, 0, 120 * dt);
     }
     if (f.jbuf > 0 && !busy) {
       if (f.ground || f.coyote > 0) {
+        // Salto encadenado: saltar justo al caer conserva y suma velocidad.
+        if (s.mt - f.landT < 120 && Math.abs(f.vx) > max * 0.8) {
+          f.vx = Math.sign(f.vx) * Math.min(max * 1.7, Math.abs(f.vx) * 1.12);
+          puff(s, f.x, f.y, 3, YEL);
+        }
+        f.dashT = 0;
         f.vy = -300 * c.jmp;
         f.ground = false;
         f.coyote = 0;
@@ -690,6 +688,7 @@ function stepFighter(s, f, o, inp, dt) {
         f.jumping = true;
         sfx(s, 'jump');
       } else if (f.jumps > 0) {
+        f.dashT = 0;
         f.vy = -270 * c.jmp;
         f.jumps--;
         f.jbuf = 0;
@@ -717,15 +716,16 @@ function stepFighter(s, f, o, inp, dt) {
   // Grado 8: el piso arrastra hacia un lado, salvo bajo el marco de la puerta (máximo 2 s).
   const g = GRADOS[Math.max(0, s.phase)];
   const inDoor = f.ground && f.plat.solid && s.st.doors.some((d) => f.x > d[0] && f.x < d[1]);
-  if (inDoor && g.lateral) {
+  if (inDoor && g.tilt) {
     f.refugio += ms;
     if (f.refugio < 2000) gainCalma(s, f, 12 * dt);
   } else {
     f.refugio = 0;
   }
-  if (g.lateral && f.ground && !(inDoor && f.refugio < 2000)) f.x += s.lat.dir * s.lat.k * 40 * dt;
+  if (g.tilt && f.ground && !(inDoor && f.refugio < 2000)) f.x += s.lat.dir * s.lat.k * 40 * dt;
 
-  if (f.dodge <= 0) {
+  if (f.dashT > 0) f.vy = 0;
+  else if (f.dodge <= 0) {
     const fast = inp.d && !f.ground && f.vy > -40;
     f.vy = Math.min(f.vy + (fast ? 1800 : 900) * dt, fast ? 420 : 300);
   }
@@ -737,7 +737,7 @@ function stepFighter(s, f, o, inp, dt) {
   if (f.vy >= 0) {
     for (const p of s.plats) {
       if (p.broken || (f.drop > 0 && !p.solid)) continue;
-      if (py <= p.y + 1 && f.y >= p.y && f.x > p.x1 - 3 && f.x < p.x2 + 3) {
+      if (py <= p.y + 1 && f.y >= p.y && f.x > p.x1 - 3 && f.x < p.x2 + 3 && !inHole(p, f.x)) {
         // Rebote al caer volando contra el piso.
         if (f.stun > 0 && f.vy > 260) {
           f.vy *= -0.35;
@@ -750,11 +750,19 @@ function stepFighter(s, f, o, inp, dt) {
           f.land = 90;
           puff(s, f.x, p.y, 3, 0xd6bd86);
         }
+        // Esquive diagonal contra el piso: se desliza (wavedash).
+        if (f.dodge > 0) {
+          f.dodge = 0;
+          f.slide = 260;
+          f.vx *= 1.25;
+        }
+        if (!wasGround) f.landT = s.mt;
         f.y = p.y;
         f.vy = 0;
         f.ground = true;
         f.jumps = 1;
         f.dodged = false;
+        f.airDash = false;
         f.plat = p;
         if (f.act && MOVES[f.act.k] && MOVES[f.act.k].air) f.act = null;
         break;
@@ -796,6 +804,26 @@ function readButtons(s, f, o, inp) {
   }
   if (f.act && f.act.k === 'hold') {
     if (inp.b2) f.act.t = 999;
+    return;
+  }
+  const m = f.act && MOVES[f.act.k];
+  const late = m && f.act.t > m.s + m.a;
+  if (inp.b4 && f.dashCd <= 0 && (f.ground || !f.airDash) && (!f.act || late)) {
+    const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
+    if (dir) f.face = dir;
+    f.act = null;
+    f.dashT = 170;
+    f.dashCd = 380;
+    f.airDash = !f.ground;
+    f.vx = f.face * 330 * f.c.spd;
+    f.vy = 0;
+    sfx(s, 'dodge');
+    puff(s, f.x, f.y - 2, 4, WHITE);
+  }
+  if (inp.b1 && f.dashT > 0) {
+    f.act = { k: 'lunge', t: 0, ch: 0 };
+    f.dashT = 0;
+    sfx(s, 'whiff');
     return;
   }
   if (f.act) return;
@@ -863,7 +891,13 @@ function resolveAction(s, f, o) {
         const an = a.k === 'stomp' && o.ground ? 1.2 : m.an;
         hit(s, o, f.face, m.d * ch * f.c.pow, m.b * ch, m.gr, an, f);
         f.sty += 50;
-        if (a.k === 'stomp' && !o.ground) o.spiked = true;
+        if (a.k === 'stomp') {
+          if (!o.ground) o.spiked = true;
+          f.vy = -290;
+          f.jumps = 1;
+          f.dodged = false;
+          f.airDash = false;
+        }
       }
     }
     if (a.k === 'grab' && !a.hit && live && o.stun <= 0 && o.out <= 0) {
@@ -934,6 +968,7 @@ function hit(s, t, dir, dmg, base, growth, ang, by) {
   const v = s.f[1 - t.i];
   if (v.grabbedBy === t) v.grabbedBy = null;
   t.act = null;
+  t.dashT = 0;
   t.ground = false;
   t.spiked = false;
   t.flashT = 50;
@@ -1018,7 +1053,7 @@ function checkOut(s, f) {
 }
 
 function respawn(s, f) {
-  f.x = f.i ? s.st.plats[0].x2 - 70 : s.st.plats[0].x1 + 70;
+  f.x = f.i ? s.st.plats[0].x2 - 50 : s.st.plats[0].x1 + 50;
   f.y = 30;
   f.vx = 0;
   f.vy = 0;
@@ -1032,6 +1067,10 @@ function respawn(s, f) {
   f.dodge = 0;
   f.dodged = false;
   f.spiked = false;
+}
+
+function inHole(p, x) {
+  return p.holes && p.holes.some((h) => x > h[0] && x < h[1]);
 }
 
 function dropHold(f) {
@@ -1067,6 +1106,10 @@ function updateQuake(s, dt) {
     }
     if (g.heavy) spawnObj(s, s.st.heavy, W / 2, -20);
     if (g.breaks) {
+      const fl = s.plats[0];
+      const c = (fl.x1 + fl.x2) / 2;
+      fl.holes = [[c - 44, c - 30], [c + 30, c + 44]];
+      for (const h of fl.holes) for (let k = 0; k < 4; k++) puff(s, h[0] + 7, fl.y, 8, 0x8a8a9c);
       for (const p of s.plats) {
         if (p.brk) {
           p.broken = true;
@@ -1085,15 +1128,37 @@ function updateQuake(s, dt) {
       spawnObj(s, kinds[(Math.random() * kinds.length) | 0], fl.x1 + 20 + Math.random() * (fl.x2 - fl.x1 - 40), -10);
     }
   }
-  if (g.lateral) {
+  if (g.tilt) {
     s.lat.t += dt * 1000;
     if (s.lat.t > 3000) {
       s.lat.t = 0;
       s.lat.dir *= -1;
     }
-    s.lat.k = Math.sin((s.lat.t / 3000) * Math.PI);
+    s.lat.k = Math.sin((s.lat.t / 3000) * Math.PI) * g.tilt;
   } else {
     s.lat.k = 0;
+  }
+  // Remezones: desde el grado 5 el piso salta y lo que está suelto brinca.
+  if (g.g >= 5) {
+    s.joltT = (s.joltT || 0) - dt * 1000;
+    if (s.joltT <= 0) {
+      s.joltT = 1700 - g.g * 130 + Math.random() * 500;
+      s.kick = g.g / 2;
+      for (const f of s.f) {
+        if (f.ground && f.out <= 0 && !f.grabbedBy) {
+          f.vy = -40 - g.g * 9;
+          f.ground = false;
+        }
+      }
+      for (const ob of s.objs) {
+        if (ob.st === 'ground') {
+          ob.st = 'fall';
+          ob.vy = -90 - Math.random() * 60;
+          ob.vx += (Math.random() - 0.5) * 60;
+        }
+      }
+      sfx(s, 'thud');
+    }
   }
   // Desde el grado 6: polvo del techo y retumbos.
   if (g.g >= 6) {
@@ -1142,7 +1207,7 @@ function stepObjects(s, dt) {
     if (ob.st === 'ground') {
       ob.vx = approach(ob.vx, 0, 300 * dt);
       ob.x += ob.vx * dt;
-      if (!s.plats.some((p) => !p.broken && Math.abs(ob.y - p.y) < 2 && ob.x > p.x1 && ob.x < p.x2)) ob.st = 'fall';
+      if (!s.plats.some((p) => !p.broken && Math.abs(ob.y - p.y) < 2 && ob.x > p.x1 && ob.x < p.x2 && !inHole(p, ob.x))) ob.st = 'fall';
       if (s.mt - ob.gt > 8000) s.objs.splice(i, 1);
       continue;
     }
@@ -1190,7 +1255,7 @@ function stepObjects(s, dt) {
 
     if (ob.vy >= 0) {
       for (const p of s.plats) {
-        if (p.broken || py > p.y || ob.y < p.y || ob.x <= p.x1 || ob.x >= p.x2) continue;
+        if (p.broken || py > p.y || ob.y < p.y || ob.x <= p.x1 || ob.x >= p.x2 || inHole(p, ob.x)) continue;
         if (ob.st === 'fly' && d.brk) {
           gone = breakObj(s, i, ob);
         } else if (d.bounce && ob.vy > 60) {
@@ -1226,7 +1291,7 @@ function cpuIntent(s, f, o, dt) {
   ai.t -= dt * 1000;
   ai.h1 -= dt * 1000;
   const w = ai.w;
-  const out = { l: w.l, r: w.r, uh: w.uh, d: w.d, up: false, dn: false, b1: false, b2: false, b3: false, h1: ai.h1 > 0, h2: false };
+  const out = { l: w.l, r: w.r, uh: w.uh, d: w.d, up: false, dn: false, b1: false, b2: false, b3: false, b4: false, h1: ai.h1 > 0, h2: false };
   const fl = s.plats[0];
   const dx = o.x - f.x;
   const adx = Math.abs(dx);
@@ -1257,7 +1322,7 @@ function cpuIntent(s, f, o, dt) {
   w.l = w.r = w.uh = w.d = false;
 
   const g = GRADOS[Math.max(0, s.phase)];
-  if (g.lateral && Math.random() < 0.3) {
+  if (g.tilt >= 1 && Math.random() < 0.3) {
     const door = s.st.doors[0];
     toward((door[0] + door[1]) / 2);
     return out;
@@ -1292,6 +1357,12 @@ function cpuIntent(s, f, o, dt) {
   if (!f.ground && adx < 22) {
     out.b1 = true;
     if (o.y > f.y + 8) out.d = true;
+    return out;
+  }
+  if (adx > 70 && Math.random() < 0.25) {
+    f.face = Math.sign(dx);
+    out.b4 = true;
+    if (Math.random() < 0.5) out.b1 = true;
     return out;
   }
   if (adx > 16) {
@@ -1476,9 +1547,35 @@ function render(s, t) {
   s.kick = Math.max(0, s.kick - 0.25);
   s.world.x = Math.round(W / 2 + (Math.random() - 0.5) * amp * 2);
   s.world.y = Math.round(H / 2 + (Math.random() - 0.5) * amp * 2);
-  s.world.rotation = s.lat.k * s.lat.dir * 0.035;
+  s.world.rotation = s.lat.k * s.lat.dir * 0.04 + (amp ? Math.sin(t / 170) * ph.amp * 0.006 : 0);
+  // El fondo tiembla a otro ritmo que el primer plano.
+  s.bg.x = -W / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
+  s.bg.y = -H / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
 
   s.st.anim(g, t, s);
+  g.fillStyle(K, 0.38).fillRect(0, 0, W, H);
+  // Bordes claros en todo lo que se pisa.
+  for (const p of s.plats) {
+    if (p.brk) continue;
+    g.fillStyle(0xe8d8b0).fillRect(p.x1, p.y, p.x2 - p.x1, 2);
+    g.fillStyle(K).fillRect(p.x1, p.y + 2, p.x2 - p.x1, 1);
+  }
+  const fl = s.plats[0];
+  const c = (fl.x1 + fl.x2) / 2;
+  if (s.phase >= 3) {
+    for (const h of fl.holes || [[c - 44, c - 30], [c + 30, c + 44]]) {
+      if (fl.holes) {
+        g.fillStyle(K).fillRect(h[0], fl.y, h[1] - h[0], H - fl.y);
+        g.fillStyle(0x8a8a9c).fillTriangle(h[0], fl.y, h[0] + 4, fl.y, h[0], fl.y + 8).fillTriangle(h[1], fl.y, h[1] - 4, fl.y, h[1], fl.y + 6);
+      } else {
+        // Grietas que crecen hasta que el piso se parte.
+        const n = 2 + s.phase * 2 + ((s.mt / 800) % 4);
+        for (let k = 0; k < n; k++) g.fillStyle(K).fillRect(h[0] + 3 + ((k * 5) % 9), fl.y + (k % 3), 2, 2 + (k % 2) * 2);
+      }
+    }
+  }
+  // Grado 7 y 8: cae tierra y pedazos del techo.
+  if (ph.g >= 7 && Math.random() < 0.3) s.parts.push({ x: 20 + Math.random() * 280, y: 0, vx: 0, vy: 60, l: 3, c: 0x8a8a9c, z: 2 + ((Math.random() * 2) | 0) });
   for (const p of s.plats) {
     if (!p.brk) continue;
     if (p.broken) g.fillStyle(0x7a4a2a).fillTriangle(p.x1, p.y, p.x1 + 6, p.y, p.x1 + 2, p.y + 20);
@@ -1650,10 +1747,12 @@ function city(g, y0, seed) {
   }
 }
 
-function lights(g, t, y0, seed, n) {
+// Luces de la ciudad, salvo en los tramos tapados por la casa o el edificio.
+function lights(g, t, y0, seed, n, hide) {
   for (let i = 0; i < n; i++) {
-    if (((t / 900 + i * 7) | 0) % 5 === 0) continue;
-    g.fillStyle(YEL, 0.8).fillRect((i * seed) % W, y0 + ((i * 53) % 40), 1, 1);
+    const x = (i * seed) % W;
+    if (((t / 900 + i * 7) | 0) % 5 === 0 || hide.some((r) => x > r[0] && x < r[1])) continue;
+    g.fillStyle(YEL, 0.8).fillRect(x, y0 + ((i * 53) % 40), 1, 1);
   }
 }
 
@@ -1711,7 +1810,7 @@ function animDepto(g, t, s) {
   g.lineStyle(1, K).lineBetween(160, 62, lx, ly);
   g.fillStyle(K).fillTriangle(lx - 6, ly + 5, lx + 6, ly + 5, lx, ly - 1);
   g.fillStyle(YEL).fillRect(lx - 1, ly + 5, 3, 2);
-  lights(g, t, 150, 37, 24);
+  lights(g, t, 150, 37, 60, [[34, 286]]);
   // El vecino golpea la pared con la escoba de vez en cuando.
   const e = (t / 1000) % 14;
   if (e < 1.2 && s.mode !== 'end') {
@@ -1776,8 +1875,8 @@ function animCasa(g, t, s) {
     if (s.cheer > 0) g.fillStyle(K).fillRect(x - 2, y - 4, 2, 5).fillRect(x + 8, y - 4, 2, 5);
   }
   // El quiltro cruza por arriba del muro.
-  const qx = ((t / 30) % 520) - 100;
-  if (qx > -20 && qx < W + 20) {
+  const qx = 138 + ((t / 30) % 360);
+  if (qx < W + 20) {
     const y = 140;
     const st = ((t / 120) | 0) % 2;
     g.fillStyle(K).fillRect(qx - 1, y - 1, 16, 8);
@@ -1812,7 +1911,7 @@ function bgEdificio(g) {
 }
 
 function animEdificio(g, t, s) {
-  lights(g, t, 150, 23, 50);
+  lights(g, t, 150, 23, 50, [[62, 126], [150, 160], [192, 254]]);
   // Micros que pasan por la avenida.
   for (let i = 0; i < 2; i++) {
     const x = ((t / (18 + i * 7) + i * 200) % 420) - 50;
@@ -1821,6 +1920,8 @@ function animEdificio(g, t, s) {
     g.fillStyle(i ? RED : WHITE).fillRect(xx, 230, 24, 7);
     g.fillStyle(0x9fe0c8).fillRect(xx + 2, 231, 18, 2);
   }
+  // El edificio tapa la avenida.
+  g.fillStyle(0x6a6a7c).fillRect(54, 209, 212, 31);
   // Luz roja de la antena.
   if (((t / 600) | 0) % 2) g.fillStyle(RED).fillRect(153, 104, 3, 3);
   // Ropa tendida.
@@ -1887,20 +1988,57 @@ function drawHud(s, t) {
     g.fillStyle(WHITE).fillRect(bx, 54, 46, 5);
     g.fillStyle(K).fillRect(bx + 1, 55, 44, 3);
     g.fillStyle(full ? (((t / 100) | 0) % 2 ? YEL : WHITE) : PCOL[i]).fillRect(bx + 1, 55, 0.44 * f.calma, 3);
-    text(g, full ? 'B1+B2!' : 'CALMA', x, 62, 1, full ? YEL : WHITE, al);
+    text(g, full ? '1+2!' : 'CALMA', x, 62, 1, full ? YEL : WHITE, al);
     if (f.comboShow > 0) text(g, f.combo + ' GOLPES', x, 72, 1, YEL, al);
   });
 
   s.msgs = s.msgs.filter((m) => t - m.t0 < m.ms);
   s.msgs.forEach((m, k) => text(g, m.str, W / 2, 104 + k * 16, 2, m.col));
 
-  if (s.help > 0 && s.mode === 'play') text(g, 'B1 GOLPE · B2 AGARRA · B3 PARRY/ESQUIVA', W / 2, 228, 1, WHITE);
+  if (s.help > 0 && s.mode === 'play') text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · FILA DE ABAJO DASH', W / 2, 228, 1, WHITE);
 
   if (s.mode === 'demo') drawTitle(s, g, t);
   if (s.mode === 'end') drawEnd(s, g, t);
 }
 
+// Antes de jugar: qué hace cada botón, con el panel del mueble dibujado.
+function drawControls(g, t) {
+  g.fillStyle(K, 0.96).fillRect(0, 0, W, 214);
+  text(g, 'CÓMO SE JUEGA', W / 2, 8, 2, YEL);
+  text(g, 'SÁCALO DE LA PANTALLA · 2 VIDAS CADA UNO', W / 2, 26, 1, WHITE);
+  const tilt = Math.round(Math.sin(t / 300) * 3);
+  g.fillStyle(0x444455).fillCircle(28, 52, 8);
+  g.lineStyle(3, WHITE).lineBetween(28, 52, 28 + tilt, 42);
+  g.fillStyle(RED).fillCircle(28 + tilt, 41, 4);
+  text(g, 'MUEVE · ARRIBA SALTA (DOBLE)\nABAJO CAE RÁPIDO O BAJA', 44, 44, 1, WHITE, 0);
+  const cols = [RED, YEL, BLUE];
+  for (let i = 0; i < 6; i++) {
+    const x = 16 + (i % 3) * 13;
+    const y = 76 + ((i / 3) | 0) * 13;
+    const on = ((t / 400) | 0) % 6 === i;
+    g.fillStyle(i < 3 ? cols[i] : 0x8a8a9c).fillCircle(x, y + (on ? 1 : 0), 5);
+    text(g, String(i + 1), x + 1, y - 2, 1, WHITE);
+  }
+  text(g, '1 GOLPE (CAMBIA CON LA DIRECCIÓN)\n2 AGARRA / LANZA   3 PARRY\nFILA DE ABAJO: DASH', 60, 70, 1, WHITE, 0);
+  text(g, 'COMBOS', W / 2, 110, 2, YEL);
+  text(
+    g,
+    'DASH + 1: EMBESTIDA\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nEN EL AIRE ABAJO + 1: PISOTÓN Y REBOTA\nEN EL AIRE 3: ESQUIVE · AL PISO SE DESLIZA\nSALTA JUSTO AL CAER: MÁS VELOCIDAD\n1 + 2 CON LA BARRA LLENA: REMEZÓN',
+    W / 2,
+    128,
+    1,
+    WHITE,
+  );
+}
+
 function drawTitle(s, g, t) {
+  // El attract alterna el título con la pantalla de controles.
+  if (((t / 7000) | 0) % 2) {
+    drawControls(g, t);
+    g.fillStyle(K, 0.7).fillRect(0, 214, W, 26);
+    if (((t / 450) | 0) % 2) text(g, 'PRESIONA START', W / 2, 220, 2, BLUE);
+    return;
+  }
   g.fillStyle(K, 0.6).fillRect(0, 92, W, 58);
   text(g, '¿SE MOVIÓ?', W / 2 + (((t / 90) | 0) % 2), 98, 5, YEL);
   text(g, '¡SÁCALO DE LA PANTALLA!', W / 2, 134, 2, WHITE);
@@ -1970,8 +2108,10 @@ function drawSelect(s, g, t) {
     const x = i ? W - 8 : 8;
     const al = i ? 1 : 0;
     text(g, 'P' + (i + 1) + (e.on ? ': ' + CHARS[e.pick].n : ''), x, 172, 2, PCOL[i], al);
-    text(g, !e.on ? 'START PARA JUGAR' : e.ok ? '¡LISTO!' : 'JOYSTICK ELIGE · B1 OK', x, 190, 1, WHITE, al);
+    text(g, !e.on ? 'START PARA JUGAR' : e.ok ? '¡LISTO!' : 'PALANCA ELIGE · 1 OK', x, 190, 1, WHITE, al);
   });
+  text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · FILA DE ABAJO DASH', W / 2, 214, 1, 0xa7a7c7);
+  text(g, 'DASH + 1 EMBESTIDA · 1 + 2 REMEZÓN', W / 2, 224, 1, 0xa7a7c7);
 }
 
 function drawEnd(s, g, t) {
@@ -2153,11 +2293,13 @@ function music(s) {
     const st = s.mus.step % 32;
     const at = s.mus.next;
     const n = MEL[st];
-    if (n !== 99) tone(s, 'square', 440 * 2 ** (n / 12), 440 * 2 ** (n / 12), stepDur * 1.6, 0.035, at);
+    // Desafina y se corta más con cada grado.
+    const wob = 1 + (Math.sin(at * 7) + Math.random() - 0.5) * (g - 3) * 0.006;
+    if (n !== 99 && !(g >= 7 && Math.random() < 0.1)) tone(s, 'square', 440 * 2 ** (n / 12) * wob, 440 * 2 ** (n / 12) * wob, stepDur * 1.6, 0.035, at);
     const b = st % 16;
     if (b === 0 || b === 6 || b === 8 || b === 14) {
       const root = BASS[(st >= 16 ? 2 : 0) + (b === 6 || b === 14 ? 1 : 0)];
-      tone(s, 'triangle', 440 * 2 ** (root / 12), 440 * 2 ** (root / 12), stepDur * 2, 0.16, at);
+      tone(s, 'triangle', 440 * 2 ** (root / 12) * wob, 440 * 2 ** (root / 12) * wob, stepDur * 2, 0.16, at);
     }
     if (st % 2 === 0) noise(s, 0.04, st % 4 === 0 ? 0.06 : 0.03, 6000, 'highpass', at);
     s.mus.next += stepDur;
