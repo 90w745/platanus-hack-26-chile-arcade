@@ -90,79 +90,72 @@ function text(g, str, x, y, sc, col, align) {
 }
 
 // ---------- Personajes ----------
-// Mapas de píxeles: un carácter, un píxel; '.' transparente.
-// Cabezas de 14 de ancho (ancla en la columna 7), cuerpos de 12 (ancla en la 6).
-
-const LEGS = {
-  stand: ['..kllllllk..', '..klllklllk.', '..kllk.kllk.', '..kwwk.kwwk.', '.kffffkffffk', '.kkkkkkkkkk.'],
-  walk: ['..kllllllk..', '.klllkkllk..', '.kllk..kllk.', 'kwwk....kwwk', 'kffk....kffk', 'kkkk....kkkk'],
-  jump: ['..kllllllk..', '.klllllllk..', '.kwwkkkwwk..', '.kffk.kffk..', '............', '............'],
-  kick: ['..klllllllkkkk..', '..kllllllllllfk.', '..kllkkkkkkkkkk.', '..kwwk..........', '..kffk..........', '..kkkk..........'],
-  sweep: ['..kllllllk......', '.kllllllllkkkkk.', '.kllllllllllllfk', '.kffkkkkkkkkkkkk', '................', '................'],
+// Mapas de píxeles comprimidos por fila: un número antes de una letra la repite y '/' separa filas.
+// Un cuerpo compartido por cuadro [ancla, corrimiento x e y de la cabeza, mapa] y una cabeza por personaje.
+const unrle = (str) => str.split('/').map((r) => r.replace(/(\d+)(\D)/g, (_, n, c) => c.repeat(n)));
+const BODY = {
+  idle0: [4, 0, 0, '.kP6dkssk/kPP5pkkssk/kPP4pkppkk./kPPppdkppk3./kPP3pkpk4./kkPP3pkk4./.k6lk4./.k7lk3./k9lk../.kwwk.kwwk3./.kwwk.kwwk3./.kwwk..kwwk../k3fk..k4fk/5k..6k'],
+  run0: [7, 1, 0, '3.kP6dk3./..kPP6p3k./.kkPP5pkpssk/kskPP5p4k./kskPP5pk4./.3kPP3pkk4./3.k6lk4./3.k7lk3./..k9lk../.k3wk3.kwwk../k3wk5.kwwk./kwwk6.kwwk./kfk7.k3fk/kk8.5k'],
+  run1: [5, 1, 0, '.kP6dk../kPP5pkk../kPP4pkpk../kPPppdkpsk../kPP3pkssk../kkPP3pkk3./.k6lk3./.k7lkk./k8lwwk/.kww5kwwk/.kwwk4.kfk/.kwwk4.kk./k3fk7./5k7.'],
+  jump: [4, 0, 0, '.kP6dkssk/kPP5pkkssk/kPP4pkp3k./kPPppdkpk4./kPP5pk4./kkPP4pkk3./.k7lkk../k8lwwk./k5l3kwwk./.k3wk..kffk./.k3fk..3k../.5k7.'],
+  fall: [9, 0, 2, '3k14.3k/.kppk..6k..kppk./..kppkkP4dkkppk3./3.3kPP5pkk5./5.kPP6pk5./5.kPP6pk5./5.kkPP4pkk5./6.k6lk6./6.k7lk5./5.k9lk4./6.kwwk.kwwk5./6.kwwk.kwwk5./5.kwwk3.kwwk4./5.kffk3.kffk4./5.4k3.4k4.'],
+  jab0: [7, -1, 0, '3.kP6dk../.3kPP5pk../k10pssk/.10kssk/3.kPP4p3k./3.kPP5pk../3.kkPP3pkk../4.k6lk../3.k7lk../..k9lk./..kwwk..kwwk../.kwwk4.kwwk./kwwk6.kwwk/k3fk4.k3fk/5k4.5k'],
+  jab1: [6, 1, 0, '..kP6d10k./.kPP12pd3sk/.kPP12pd3sk/.kPP5p11k./.kPP5pk11./.kkPP3pkk11./..k5lk12./..k6lk11./.k8lkk9./.kwwk..k4wk8./kwwk5.kwwk8./kwwk6.kwwk7./kffk6.k3fk6./4k6.5k6.'],
+  smash0: [9, -2, 0, '5.kP6dk../6kPP5pkk./k3sppPP4pkssk/k3sppPP4pkssk/6kPP5pkk./5.kkPP3pk3./6.k5lk3./5.k7lk../4.k9lk./3.k3wk..kwwk../..k3wk4.kwwk./.kwwk6.kwwk./k3fk6.k3fk/5k6.5k'],
+  smash1: [6, 1, 0, '..kP6d13k./.kPP14pd4sk/.kPP14pd4sk/.kPP5p10k4sk/.kPP5pk.6d..4k./.kkPP3pkk3.4d7./..k5lk15./..k6lkk13./.k8lwwk11./kwwk..5kwwk10./kwwk6.kwwk10./kwwk7.kwwk9./kffk7.k3fk8./4k7.5k8.'],
+  upper1: [5, -2, 9, '10.3k/9.kssk/9.kssk/9.kddk/9.kppk/9.kppk/9.kppk/9.kppk/..8kppk/.kP6dppk./kPP7pk../kPP6pk3./kPP6pk3./kPP5pk4./kkPP4pk4./.k6lk4./.k7lk3./k9lk../.kwwk.kwwk3./.kwwk.kwwk3./.kwwk..kwwk../k3fk..k4fk/5k..6k'],
+  sweep1: [5, -1, 0, '.kP6dk12./kPP6pk12./kPP5pkpk11./kPP5pkpk11./kkPP3pkkssk10./.k7l12k./k8l10wffk/k8l10wffk/k4w17k/k5fk15./6k16.'],
+  akick1: [5, -1, 0, '.kP6dk10./kPP6pk10./kPP4pkpk10./kPP4pkpk10./kPP3pkssk10./kkPP3p12k./.k7l8wffk/.k7l8wffk/.k6l12k/..k4wk12./..k3wk13./..k3fk13./..5k13.'],
+  stomp1: [4, 0, 0, '.kP6dk../kPP6pkk./kPP6pkpk/kPP6pkpk/kPP6pkpk/kkPP4pkksk/.k6l3k./.k7lwwk/k8lwwk/.kww5kffk/.kwwk..4k./.kwwk7./.kwwk7./.kwwk7./k3fk7./5k7.'],
+  grab1: [5, 0, 0, '.kP6d11k./kPP13pd3sk/kPP4p13k./kPP13pd3sk/kPP3p14k./kkPP3pk13./.k6lk12./.k7lk11./k9lk10./.kwwk.kwwk11./.kwwk..kwwk10./.kwwk3.kwwk9./k3fk3.k4fk7./5k3.6k7.'],
+  hold: [5, -2, 5, '13.5k./12.k5sk/11.k5dk./10.kppkppk../9.kppkppk3./.kP5dppkppk5./kPP9pk6./kPP8pk7./kPP7pk8./kPP7pk8./kkPP4pkk9./.k6lk10./.k7lk9./k9lk8./.kwwk.kwwk9./.kwwk.kwwk9./kwwk3.kwwk8./k3fk..k4fk6./5k..6k6.'],
+  parry: [5, -1, 0, '.kP6dkssk.kssk/kPP6pkkppkPPk./kPP6pk.kppPk../kPP6pk.kPppk../kPP6pkkPPkppk./kPP6pkPPk.kppk/kkPP4pk.kk3.kk./.k6lk9./.k7lk8./k9lk7./.kwwk.kwwk8./.kwwk.kwwk8./.kwwk..kwwk7./k3fk..k4fk5./5k..6k5.'],
+  hurt: [7, -4, 3, '11.kk4./10.kssk3./.5k4.kppk3./kP3dk3.kppk4./kPP3pk.kppk5./.kPP3pkppk6./..kPP5pk6./3.kPP4pk6./4.k6lk5./4.k7lkk3./3.k7lwwk3./4.k3w3k3wk../5.k3wk.k3wk./6.kffk..k3fk/6.3k4.4k'],
+  dodge: [5, 1, 0, '.kP6dk../kPP6pkk./kPP5pkssk/kPP3p3kssk/kkPPpkll3wk/.k6l3wk/k7lkwwk/k3w5kwwk/k3fk3.kffk/5k3.4k'],
+  win: [8, 0, 5, '.kk14.kk./kssk12.kssk/kddk12.kddk/.kppk10.kppk./..kppk8.kppk../3.kpp8dppk3./4.kPP7pk5./4.kPP7pk5./4.kPP6pk6./4.kkPP4pkk6./5.k6lk7./5.k7lk6./4.k9lk5./4.kwwk..kwwk6./3.kwwk4.kwwk5./3.kwwk4.kwwk5./..k3fk4.k3fk4./..5k4.5k4.'],
 };
+const HEADS = {
+  PATY: [6, '..kk.kk.kk4./.kbbkbbkbbk3./.kbBkbBkbBkk../k11hk./k12hk/k5h6shk/k3h9sk/k3h3sekseksk/k3h3sessessk/k3hSsr4srsk/k3hkS3srrsk./.khh8k..'],
+  CATA: [7, '4.7k4./3.k7hk3./..k9hk../.k5hkbbkbbk./.k12hk/k6h6shk/k4h9sk/k4h3sekseksk/k4h3sessessk/k4hSsr4srsk/k4hkS3srrsk./k3h8k3.'],
+  CHEPO: [8, '5.7k6./4.k7bk5./4.k7Bk5./.4k7b5k./k16bk/.16k./..khh3skkskkssk../..khh4sessessk../..khh4sessessk../..kS4s6hsk../3.kS3sh4shk3./4.10k4.'],
+  DANI: [6, '3.7k6./..k7bk5./.k9bk4./.k10b4k/k11b3Bk/khh12k./khh3skkskkssk../khh4sessessk../khh4sessessk../kS10sk3./.kS4skkssk4./..10k4.'],
+};
+const PALS = {
+  PATY: { k: 0x1a1220, s: 0xf2c09a, S: 0xc98a68, h: 0x6a3a22, H: 0x4a2416, b: 0x6fd0f0, B: 0x3a98c0, p: 0xf07aa8, P: 0xc0507e, d: 0xfff0a0, l: 0xf07aa8, w: 0xf2c09a, f: 0x8ad8f0, e: 0x1a1220, r: 0xe0506a },
+  CATA: { k: 0x1a1220, s: 0xf2c09a, S: 0xc98a68, h: 0xf0d060, H: 0xc8a040, b: 0x2a2a3a, B: 0x6a6a7a, p: 0xf4f0e6, P: 0xc8c0b0, d: 0x4a8ae0, l: 0xc4a46c, w: 0xf2c09a, f: 0x8a4a24, e: 0x1a1220, r: 0xe0506a },
+  CHEPO: { k: 0x1a1220, s: 0xd9a07a, S: 0xa8704f, h: 0x2a1a14, H: 0x2a1a14, b: 0xe8cc7a, B: 0x5a3020, p: 0xd02c34, P: 0x901c24, d: 0xf0e0b0, l: 0x3a3040, w: 0x3a3040, f: 0x5a3020, e: 0x1a1220, r: 0xc0504a },
+  DANI: { k: 0x1a1220, s: 0xd8a07c, S: 0xa87050, h: 0x2a1a14, H: 0x2a1a14, b: 0xe0303a, B: 0x8a1f2a, p: 0x2a4ac0, P: 0x1a2c80, d: 0xf6f6f6, l: 0x2a4ac0, w: 0x2a4ac0, f: 0xf6f6f6, e: 0x1a1220, r: 0xc0504a },
+};
+for (const k in BODY) BODY[k][3] = unrle(BODY[k][3]);
 
 const CHARS = [
-  {
-    n: 'PATY',
-    t: 'RÁPIDA',
-    spd: 1.1,
-    jmp: 1.05,
-    wt: 0.95,
-    pow: 0.95,
-    vic: 'hips',
-    pal: { p: 0xe8739a, P: 0xb24f74, d: 0xffe17a, l: 0xe8739a, w: 0xf0b48a, f: 0x7fd0ea, h: 0x5a2e1c, b: 0x7fd0ea },
-    head: ['...kbbkbbkb...', '..khhhhhhhhk..', '.khhhhhhhhhhk.', '.khhhsssssssk.', '.khhssssssssk.', '.khhSsssssssk.', '.khhSssssssk..', '.khhkSsssssk..', '..kk.kkkkkk...'],
-    torso: ['..kkppppkk..', '.kpdppppdpk.', '.kpppdppppk.', '.kPPPPPPPPk.', '.kpdpppdppk.'],
-    mouth: 6,
-  },
-  {
-    n: 'CHEPO',
-    t: 'PESADO',
-    spd: 0.9,
-    jmp: 0.95,
-    wt: 1.18,
-    pow: 1.15,
-    vic: 'wave',
-    pal: { p: 0xc0303a, P: 0x8a1f2a, d: WHITE, l: 0x3a2a24, w: 0x4f2e19, f: 0x4f2e19, h: 0x3b2418, b: 0xe0c070, B: 0xc0303a },
-    head: ['.....kkkk.....', '....kbbbbk....', '...kBBBBBBk...', 'kkkbbbbbbbbkkk', '..ksssssssssk.', '..kSssssssssk.', '..kSssssssssk.', '...kSsssssssk.', '....kkkkkkkk..'],
-    torso: ['..kkppppkk..', '.kppddddppk.', '.kppppppppk.', '.kddddddddk.', '.kkkkkkkkkk.'],
-    mouth: 7,
-  },
-  {
-    n: 'CATA',
-    t: 'GOLPE FUERTE',
-    spd: 1,
-    jmp: 1,
-    wt: 0.9,
-    pow: 1.12,
-    vic: 'hips',
-    pal: { p: 0xa8d8f0, P: 0x78a8c8, d: 0x2c3160, l: 0xd9c9a0, w: 0xf0b48a, f: 0x7a4a2a, h: 0xe8c060, B: K },
-    head: ['...kkkkkkkk...', '..kBBkhhkBBk..', '.khhhhhhhhhhk.', '.khhhsssssssk.', '.khhssssssssk.', '.khhSsssssssk.', '.khhSssssssk..', '.khhhkSsssk...', '.khhhkkkkkk...'],
-    torso: ['..kkddddkk..', '.kddppppddk.', '.kppppppppk.', '.kppppppppk.', '.kkkkkkkkkk.'],
-    mouth: 6,
-  },
-  {
-    n: 'DANI',
-    t: 'VELOZ',
-    spd: 1.2,
-    jmp: 1.05,
-    wt: 0.88,
-    pow: 0.95,
-    vic: 'flex',
-    pal: { p: 0x3a3a9a, P: WHITE, d: WHITE, l: 0x3a3a9a, w: WHITE, f: WHITE, h: 0x2a1a14, b: RED, B: 0x9a2a2a },
-    head: ['...kkkkkkk....', '..kbbbbbbbk...', '..kbbbbbbbbkkk', '..kBBBBBBBBBBk', '..khssssssssk.', '..kSssssssssk.', '..kSssssssssk.', '...kSsssssssk.', '....kkkkkkkk..'],
-    torso: ['..kkppppkk..', '.kdppPpppdk.', '.kdppPpppdk.', '.kdppPpppdk.', '.kkkkkkkkkk.'],
-    mouth: 7,
-  },
+  { n: 'PATY', t: 'RÁPIDA', spd: 1.1, jmp: 1.05, wt: 0.95, pow: 0.95 },
+  { n: 'CHEPO', t: 'PESADO', spd: 0.9, jmp: 0.95, wt: 1.18, pow: 1.15 },
+  { n: 'CATA', t: 'GOLPE FUERTE', spd: 1, jmp: 1, wt: 0.9, pow: 1.12 },
+  { n: 'DANI', t: 'VELOZ', spd: 1.2, jmp: 1.05, wt: 0.88, pow: 0.95 },
 ];
-const BASE_PAL = { k: K, s: 0xf0b48a, S: 0xc47f5e, w: WHITE };
-for (const c of CHARS) c.pal = Object.assign({}, BASE_PAL, c.pal);
+for (const c of CHARS) {
+  c.pal = PALS[c.n];
+  c.head = [HEADS[c.n][0], unrle(HEADS[c.n][1])];
+}
 const FLASH_PAL = new Proxy({}, { get: () => WHITE });
+
+// Pose de cada golpe: [arranque, golpe]. La del golpe se mantiene en el activo y en media recuperación.
+const POSES = { jab: ['jab0', 'jab1'], smash: ['smash0', 'smash1'], upper: ['jab0', 'upper1'], sweep: ['dodge', 'sweep1'], akick: ['jump', 'akick1'], stomp: ['fall', 'stomp1'], grab: ['grab1', 'grab1'] };
 
 // Si los dos eligen al mismo, el segundo juega con la ropa de otro color y su nombre lleva (1).
 function copyOf(c) {
   const pal = Object.assign({}, c.pal);
-  for (const k of 'pPdlbB') if (pal[k] !== undefined && pal[k] !== K) pal[k] = ((pal[k] << 8) | (pal[k] >> 16)) & 0xffffff;
+  for (const k of 'pPdlbB') {
+    const v = pal[k];
+    const r = v >> 16;
+    const g = (v >> 8) & 255;
+    const b = v & 255;
+    // Los grises y blancos no cambian al rotar el color: se tiñen de verde.
+    pal[k] = Math.max(r, g, b) - Math.min(r, g, b) < 48 ? (((r * 0.5) | 0) << 16) | (((g * 0.85) | 0) << 8) | ((b * 0.55) | 0) : (g << 16) | (b << 8) | r;
+  }
+  // El pantalón sigue siendo uno solo.
+  if (c.pal.w === c.pal.l) pal.w = pal.l;
   return Object.assign({}, c, { n: c.n + ' (1)', pal });
 }
 
@@ -186,41 +179,15 @@ function spr(g, map, cx, top, face, pal, anchor, sc) {
   }
 }
 
-// Rectángulo con contorno relativo al centro, espejado según la cara.
-function rr(g, face, cx, r0, y, w, h, c) {
-  const x = face > 0 ? cx + r0 : cx - r0 - w;
-  g.fillStyle(K).fillRect(x - 1, y - 1, w + 2, h + 2);
-  g.fillStyle(c).fillRect(x, y, w, h);
-}
-
-function drawFace(g, ch, face, cx, top, mood, t, sc) {
-  const z = sc || 1;
-  const px = (r, y, w, h, c) => {
-    const x = face > 0 ? cx + r * z : cx - (r + w) * z;
-    g.fillStyle(c).fillRect(x, top + y * z, w * z, h * z);
-  };
-  if (mood === 'daze') {
-    px(0, 5, 2, 1, K);
-    px(3, 5, 2, 1, K);
-  } else if (mood === 'calm') {
-    px(1, 4, 1, 2, K);
-    px(4, 4, 1, 2, K);
-  } else {
-    px(0, 4, 2, 2, WHITE);
-    px(3, 4, 2, 2, WHITE);
-    const py = mood === 'terror' ? 4 : 5;
-    px(1, py, 1, 1, K);
-    px(4, py, 1, 1, K);
-    px(2, ch.mouth, mood === 'terror' ? 2 : 1, mood === 'terror' ? 2 : 1, K);
-    if (mood === 'terror') px(-5, 3 + (((t / 120) | 0) % 3), 1, 2, 0x7fd0ea);
-  }
-  if (ch.glasses) {
-    g.lineStyle(z, K);
-    for (const r of [0, 3]) {
-      const x = face > 0 ? cx + r * z : cx - (r + 2) * z;
-      g.strokeRect(x - z / 2, top + 3.5 * z, 3 * z, 3 * z);
-    }
-  }
+// Dibuja un cuadro del cuerpo y encima la cabeza. Devuelve el borde de arriba de la cabeza.
+function drawChar(g, c, fr, cx, feet, face, pal, z) {
+  const [a, hx, hy, m] = BODY[fr];
+  const top = feet - m.length * z;
+  spr(g, m, cx, top, face, pal, a, z);
+  const [ha, hm] = c.head;
+  const ht = top + (hy - hm.length) * z;
+  spr(g, hm, cx + hx * z * face, ht, face, pal, ha, z);
+  return ht;
 }
 
 // ---------- Mapas y fondos vivos ----------
@@ -847,8 +814,8 @@ function stepFighter(s, f, o, inp, dt) {
       sfx(s, 'parry');
       return;
     }
-    f.x = g.x + g.face * 12;
-    f.y = g.y - 3;
+    f.x = g.x + g.face * 11;
+    f.y = g.y - 6;
     f.vx = f.vy = 0;
     return;
   }
@@ -995,7 +962,7 @@ function stepFighter(s, f, o, inp, dt) {
   if (f.act) f.act.t += ms;
   if (f.hold) {
     f.hold.x = f.x;
-    f.hold.y = f.y - 22;
+    f.hold.y = f.y - 30;
   }
 }
 
@@ -1121,7 +1088,7 @@ function touches(f, o, box) {
   if (o.out > 0) return false;
   const ax = f.face > 0 ? f.x + box[0] : f.x - box[1];
   const bx = f.face > 0 ? f.x + box[1] : f.x - box[0];
-  return o.x + 5 > ax && o.x - 5 < bx && o.y - 20 < f.y + box[3] && o.y > f.y + box[2];
+  return o.x + 5 > ax && o.x - 5 < bx && o.y - 26 < f.y + box[3] && o.y > f.y + box[2];
 }
 
 function isParrying(f) {
@@ -1400,7 +1367,7 @@ function stepObjects(s, dt) {
 
     for (const f of s.f) {
       if (f.out > 0 || f.inv > 0 || f === ob.own || f.grabbedBy) continue;
-      if (Math.abs(ob.x - f.x) < 5 + d.w / 2 && ob.y > f.y - 20 && ob.y - d.h < f.y) {
+      if (Math.abs(ob.x - f.x) < 5 + d.w / 2 && ob.y > f.y - 26 && ob.y - d.h < f.y) {
         if (ob.st === 'fly') {
           if (isParrying(f)) {
             ob.vx = -ob.vx * 1.1;
@@ -1783,81 +1750,35 @@ function render(s, t) {
 function drawFighter(s, g, f, t) {
   if (f.out > 0 || (f.blink > 0 && ((t / 70) | 0) % 2)) return;
   if (f.dodge > 0 && ((t / 40) | 0) % 2) return;
-  const c = f.c;
-  const pal = f.flashT > 0 ? FLASH_PAL : c.pal;
-  const d = f.face;
-  const cx = Math.round(f.x);
   const a = f.act ? f.act.k : '';
   const m = MOVES[a];
-  const active = m && f.act.t >= m.s && f.act.t < m.s + m.a;
-  const crouch = a === 'sweep' || f.land > 0 ? 3 : 0;
-  const moving = f.ground && Math.abs(f.vx) > 20;
-  const step = ((t / 110) | 0) % 2;
-  const bob = moving && step ? 1 : 0;
-  const top = Math.round(f.y) - 20 + crouch - bob;
-  const hurt = f.stun > 0 || f.grabbedBy;
-
-  let legs = LEGS.stand;
-  if (a === 'sweep' && active) legs = LEGS.sweep;
-  else if ((a === 'akick' || a === 'stomp') && active) legs = LEGS.kick;
-  else if (!f.ground) legs = LEGS.jump;
-  else if (moving && step) legs = LEGS.walk;
-  spr(g, legs, cx, top + 14 - crouch + (a === 'sweep' ? 3 : 0), d, pal, 6);
-  spr(g, c.torso, cx, top + 9, d, pal, 6);
-  spr(g, c.head, cx, top, d, pal, 7);
-  const mood = f.daze > 0 ? 'daze' : f.susto >= 100 ? 'terror' : f.susto >= 50 ? 'scared' : 'calm';
-  if (f.flashT <= 0) drawFace(g, c, d, cx, top, mood, t);
+  let fr = 'idle0';
+  if (f.stun > 0 || f.grabbedBy) fr = 'hurt';
+  else if (f.dodge > 0 || f.land > 0) fr = 'dodge';
+  else if (m) fr = POSES[a][f.act.t >= m.s && f.act.t < (m.s + m.a + m.e) / 2 ? 1 : 0];
+  else if (a === 'parry') fr = 'parry';
+  else if (a === 'throwing') fr = 'jab1';
+  else if (a === 'remezon') fr = 'win';
+  else if (a === 'hold' || f.hold) fr = 'hold';
+  else if (!f.ground) fr = f.vy < 0 ? 'jump' : 'fall';
+  else if (Math.abs(f.vx) > 20) fr = ((t / (f.run ? 70 : 110)) | 0) % 2 ? 'run1' : 'run0';
+  const cx = Math.round(f.x);
+  const feet = Math.round(f.y);
+  const ht = drawChar(g, f.c, fr, cx, feet, f.face, f.flashT > 0 ? FLASH_PAL : f.c.pal, 1);
+  // Golpe cargado: chispas alrededor mientras se mantiene el botón.
+  if (a === 'smash' && f.act.ch > 0) for (let k = 0; k < 3; k++) g.fillStyle(YEL).fillRect(cx + (Math.random() - 0.5) * 18, feet - Math.random() * 26, 1, 1);
   if (f.daze > 0) {
     for (let k = 0; k < 3; k++) {
       const an = t / 150 + (k * Math.PI * 2) / 3;
-      g.fillStyle(YEL).fillRect(cx + Math.cos(an) * 8, top - 3 + Math.sin(an) * 2, 2, 2);
+      g.fillStyle(YEL).fillRect(cx + Math.cos(an) * 8, ht - 3 + Math.sin(an) * 2, 2, 2);
     }
   }
-
-  // Brazos según la acción.
-  const p = pal.p;
-  const sk = pal.s;
-  if (a === 'jab' || a === 'smash') {
-    if (active) {
-      const L = a === 'smash' ? 9 : 6;
-      rr(g, d, cx, 5, top + 10, L, 2, p);
-      rr(g, d, cx, 5 + L, top + 9, 3, 3, sk);
-    } else {
-      const charging = a === 'smash' && f.act.ch > 0 && ((t / 60) | 0) % 2;
-      rr(g, d, cx, -10, top + 10, 4, 2, p);
-      rr(g, d, cx, -12, top + 9, 2, 3, charging ? YEL : sk);
-    }
-    rr(g, d, cx, -7, top + 11, 2, 3, p);
-  } else if (a === 'upper') {
-    rr(g, d, cx, 4, top + (active ? 0 : 6), 2, active ? 10 : 5, p);
-    rr(g, d, cx, 4, top + (active ? -3 : 3), 3, 3, sk);
-  } else if (a === 'grab' || a === 'hold') {
-    const L = a === 'hold' || f.act.t >= 120 ? 6 : 3;
-    rr(g, d, cx, 5, top + 9, L, 2, p);
-    rr(g, d, cx, 5, top + 12, L, 2, p);
-  } else if (f.hold || a === 'throwing' || a === 'remezon') {
-    rr(g, d, cx, -7, top + 1, 2, 9, p);
-    rr(g, d, cx, 5, top + 1, 2, 9, p);
-    if (a === 'remezon') g.lineStyle(2, YEL, 0.9).strokeCircle(cx, top + 10, 6 + f.act.t / 4);
-  } else if (a === 'parry') {
-    rr(g, d, cx, 4, top + 6, 2, 6, p);
-    rr(g, d, cx, 7, top + 6, 2, 6, p);
-    if (f.act.t < 160) g.lineStyle(1, WHITE, 1 - f.act.t / 160).strokeCircle(cx, top + 10, 13);
-  } else if (a === 'akick' || a === 'stomp') {
-    rr(g, d, cx, -9, top + 8, 4, 2, p);
-    rr(g, d, cx, 4, top + 5, 2, 4, p);
-  } else if (hurt) {
-    const wob = ((t / 60) | 0) % 2;
-    rr(g, d, cx, -8, top + 2 + wob, 2, 6, p);
-    rr(g, d, cx, 6, top + 3 - wob, 2, 6, p);
-  } else {
-    rr(g, d, cx, -7, top + 10, 2, 4, p);
-    rr(g, d, cx, -7, top + 14, 2, 1, sk);
-    rr(g, d, cx, 5, top + 10, 2, 4, p);
-    rr(g, d, cx, 5, top + 14, 2, 1, sk);
-  }
+  // Con mucho susto, transpira.
+  if (f.susto >= 100 && f.flashT <= 0) g.fillStyle(0x7fd0ea).fillRect(cx - f.face * 7, ht + 3 + (((t / 120) | 0) % 3), 1, 2);
+  if (a === 'remezon') g.lineStyle(2, YEL, 0.9).strokeCircle(cx, feet - 13, 6 + f.act.t / 4);
+  if (a === 'parry' && f.act.t < 160) g.lineStyle(1, WHITE, 1 - f.act.t / 160).strokeCircle(cx, feet - 13, 15);
   // Marca del jugador sobre la cabeza.
-  g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, top - 7, cx + 3, top - 7, cx, top - 4);
+  g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, ht - 7, cx + 3, ht - 7, cx, ht - 4);
 }
 
 function drawObj(s, g, ob) {
@@ -1946,21 +1867,17 @@ function drawHud(s, t) {
     text(g, Math.round(f.susto) + '%', x, 12, 3, f.susto >= 100 ? RED : f.susto >= 50 ? YEL : WHITE, al);
     text(g, String(score(f)), x, 34, 1, WHITE, al);
     for (let k = 0; k < 2; k++) {
-      const hx = i ? W - 14 - k * 16 : 14 + k * 16;
-      if (k < f.lives) {
-        spr(g, f.c.head, hx, 42, 1, f.c.pal, 7);
-        drawFace(g, f.c, 1, hx, 42, 'calm', t);
-      } else {
-        g.fillStyle(0x444455).fillRect(hx - 5, 44, 10, 7);
-      }
+      const hx = i ? W - 16 - k * 20 : 16 + k * 20;
+      if (k < f.lives) spr(g, f.c.head[1], hx, 42, i ? -1 : 1, f.c.pal, f.c.head[0]);
+      else g.fillStyle(0x444455).fillRect(hx - 5, 45, 10, 8);
     }
     const full = f.calma >= 100;
     const bx = i ? W - 52 : 6;
-    g.fillStyle(WHITE).fillRect(bx, 54, 46, 5);
-    g.fillStyle(K).fillRect(bx + 1, 55, 44, 3);
-    g.fillStyle(full ? (((t / 100) | 0) % 2 ? YEL : WHITE) : PCOL[i]).fillRect(bx + 1, 55, 0.44 * f.calma, 3);
-    text(g, full ? '1+2!' : 'CALMA', x, 62, 1, full ? YEL : WHITE, al);
-    if (f.comboShow > 0) text(g, f.combo + ' GOLPES', x, 72, 1, YEL, al);
+    g.fillStyle(WHITE).fillRect(bx, 57, 46, 5);
+    g.fillStyle(K).fillRect(bx + 1, 58, 44, 3);
+    g.fillStyle(full ? (((t / 100) | 0) % 2 ? YEL : WHITE) : PCOL[i]).fillRect(bx + 1, 58, 0.44 * f.calma, 3);
+    text(g, full ? '1+2!' : 'CALMA', x, 65, 1, full ? YEL : WHITE, al);
+    if (f.comboShow > 0) text(g, f.combo + ' GOLPES', x, 75, 1, YEL, al);
   });
 
   s.msgs = s.msgs.filter((m) => t - m.t0 < m.ms);
@@ -2022,43 +1939,6 @@ function drawTitle(s, g, t) {
   text(g, pages[((t / 2500) | 0) % pages.length], W / 2, 232, 1, WHITE);
 }
 
-// Pose de cuerpo entero a escala, con un gesto propio de cada personaje.
-function drawPose(g, c, cx, top, z, t, vic) {
-  spr(g, LEGS.stand, cx, top + 14 * z, 1, c.pal, 6, z);
-  spr(g, c.torso, cx, top + 9 * z, 1, c.pal, 6, z);
-  spr(g, c.head, cx, top, 1, c.pal, 7, z);
-  drawFace(g, c, 1, cx, top, 'calm', t, z);
-  const arm = (r, y, w, h, col) => {
-    g.fillStyle(K).fillRect(cx + r * z - 1, top + y * z - 1, w * z + 2, h * z + 2);
-    g.fillStyle(col).fillRect(cx + r * z, top + y * z, w * z, h * z);
-  };
-  const k = Math.sin(t / 160) > 0 ? 0 : 1;
-  const p = c.pal.p;
-  if (!vic) {
-    arm(-7, 10, 2, 4, p);
-    arm(5, 10, 2, 4, p);
-  } else if (c.vic === 'wave') {
-    arm(-7, 10, 2, 4, p);
-    arm(5 + k, 1, 2, 9, p);
-  } else if (c.vic === 'cup') {
-    arm(-7, 10, 2, 4, p);
-    arm(5, 9, 3, 2, p);
-    arm(7, 6 + k, 3, 3, WHITE);
-  } else if (c.vic === 'thumb') {
-    arm(-7, 10, 2, 4, p);
-    arm(5, 9, 3, 2, p);
-    arm(8, 7 - k, 2, 3, c.pal.s);
-  } else if (c.vic === 'flex') {
-    arm(-9, 6 + k, 3, 2, p);
-    arm(-9, 4 + k, 2, 2, c.pal.s);
-    arm(6, 6 + k, 3, 2, p);
-    arm(7, 4 + k, 2, 2, c.pal.s);
-  } else {
-    arm(-8, 11, 2, 3, p);
-    arm(6, 11, 2, 3, p);
-  }
-}
-
 function drawSelect(s, g, t) {
   g.fillStyle(K, 0.92).fillRect(0, 0, W, H);
   text(g, 'ELIGE TU PERSONAJE', W / 2, 6, 2, YEL);
@@ -2072,7 +1952,7 @@ function drawSelect(s, g, t) {
     picked.forEach((i, n) => g.lineStyle(2, PCOL[i]).strokeRect(x0 + 2 + n * 3, y0 + 1 + n * 3, 72 - n * 6, 110 - n * 6));
     const ready = picked.some((i) => s.sel[i].ok);
     const bounce = picked.length && !ready ? Math.round(Math.abs(Math.sin(t / 150)) * -4) : 0;
-    drawPose(g, c, cx, y0 + 12 + bounce, 3, t, ready);
+    drawChar(g, c, ready ? 'win' : 'idle0', cx, y0 + 86 + bounce, 1, c.pal, 3);
     text(g, c.n, cx, y0 + 88, 2, WHITE);
     text(g, c.t, cx, y0 + 102, 1, 0xa7a7c7);
   });
@@ -2093,12 +1973,12 @@ function drawEnd(s, g, t) {
   const w = s.winner;
   text(g, 'GANA ' + w.c.n, W / 2, 10, 3, PCOL[w.i]);
   if (w.comeback) text(g, '¡REMONTADA!', W / 2, 34, 2, YEL);
-  // El ganador celebra a su manera.
+  // El ganador celebra.
   const jump = Math.round(Math.abs(Math.sin(t / 220)) * -4);
-  drawPose(g, w.c, W / 2, 50 + jump, 3, t, true);
-  text(g, `SOBREVIVIÓ: GRADO ${s.maxG}`, W / 2, 124, 2, WHITE);
+  drawChar(g, w.c, 'win', W / 2, 122 + jump, 1, w.c.pal, 3);
+  text(g, `SOBREVIVIÓ: GRADO ${s.maxG}`, W / 2, 127, 2, WHITE);
   if (s.f.every((f) => f.cpu)) return;
-  text(g, s.f.map((f) => `${f.cpu ? 'CPU' : 'P' + (f.i + 1)} ${score(f)}`).join('    '), W / 2, 144, 2, WHITE);
+  text(g, s.f.map((f) => `${f.cpu ? 'CPU' : 'P' + (f.i + 1)} ${score(f)}`).join('    '), W / 2, 146, 2, WHITE);
   s.entries.forEach((e, n) => {
     const l = e.letters.map((c, k) => (k === e.pos && !e.done && ((t / 200) | 0) % 2 ? '_' : String.fromCharCode(65 + c))).join(' ');
     text(g, `P${e.f.i + 1} INICIALES: ${l}${e.done ? ' ¡LISTO!' : ''}`, W / 2, 166 + n * 16, 2, PCOL[e.f.i]);
