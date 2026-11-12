@@ -129,33 +129,6 @@ const CHARS = [
     mouth: 7,
   },
   {
-    n: 'FLORA',
-    t: 'SALTA ALTO',
-    spd: 1,
-    jmp: 1.15,
-    wt: 0.95,
-    pow: 1,
-    vic: 'wave',
-    pal: { p: 0xf2c230, P: 0xc49420, d: K, l: 0x2a3a5a, w: 0x2a2a3a, f: 0x2a2a3a, h: 0x2a1a14, b: RED, B: 0x9a2a2a },
-    head: ['....kkkkkk....', '...kbbbbbbk...', '..kbbbbbbbbk..', '..kBBBBBBBBk..', '.khhssssssssk.', '.khSssssssssk.', '.khSssssssssk.', '.khhkSssssssk.', '..kk.kkkkkkk..'],
-    torso: ['..kkppppkk..', '.kpppdpppPk.', '.kpppdpppPk.', '.kpppdpppPk.', '.kkkkkkkkkk.'],
-    mouth: 6,
-  },
-  {
-    n: 'BENJA',
-    t: 'LIVIANO',
-    spd: 1.15,
-    jmp: 1.1,
-    wt: 0.85,
-    pow: 0.9,
-    vic: 'cup',
-    glasses: true,
-    pal: { p: 0xd9a53a, P: 0xa87a22, d: 0x7a4a2a, l: 0x3b5a8a, w: WHITE, f: WHITE, h: 0x5a3a24, b: 0x3f7f6f, B: 0x2c5a4f },
-    head: ['....kkkkkk....', '...kbbbbbbk...', '..kbbbbbbbbk..', '..kbBbBbBbBk..', '..khssssssssk.', '..kSssssssssk.', '..kShhsssshhk.', '...khhhhhhhk..', '....kkkkkkk...'],
-    torso: ['..kkppppkk..', '.kpdpppppPk.', '.kppdppppPk.', '.kpppdpppPk.', '.kkkkkkkkkk.'],
-    mouth: 6,
-  },
-  {
     n: 'CATA',
     t: 'GOLPE FUERTE',
     spd: 1,
@@ -185,6 +158,13 @@ const CHARS = [
 const BASE_PAL = { k: K, s: 0xf0b48a, S: 0xc47f5e, w: WHITE };
 for (const c of CHARS) c.pal = Object.assign({}, BASE_PAL, c.pal);
 const FLASH_PAL = new Proxy({}, { get: () => WHITE });
+
+// Si los dos eligen al mismo, el segundo juega con la ropa de otro color y su nombre lleva (1).
+function copyOf(c) {
+  const pal = Object.assign({}, c.pal);
+  for (const k of 'pPdlbB') if (pal[k] !== undefined && pal[k] !== K) pal[k] = ((pal[k] << 8) | (pal[k] >> 16)) & 0xffffff;
+  return Object.assign({}, c, { n: c.n + ' (1)', pal });
+}
 
 // Dibuja un mapa de píxeles uniendo tramos del mismo color. sc escala (pantallas).
 function spr(g, map, cx, top, face, pal, anchor, sc) {
@@ -325,7 +305,6 @@ const MOVES = {
   sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 1.15 },
   akick: { s: 60, a: 160, e: 320, box: [1, 14, -12, -2], d: 8, b: 70, gr: 2.5, an: 0.45, air: true },
   stomp: { s: 120, a: 120, e: 380, box: [-6, 6, -4, 7], d: 10, b: 60, gr: 2.6, an: -1.2, air: true },
-  lunge: { s: 30, a: 130, e: 320, box: [0, 18, -18, -4], d: 11, b: 100, gr: 2.8, an: 0.35 },
   grab: { s: 120, a: 80, e: 400, box: [1, 12, -16, -4] },
 };
 
@@ -416,7 +395,7 @@ function update(time, delta) {
 
 function openSelect(s, humans) {
   s.mode = 'select';
-  s.sel = [0, 1].map((i) => ({ on: humans[i], pick: s.picks[i], ok: !humans[i], cool: 0 }));
+  s.sel = [0, 1].map((i) => ({ on: humans[i], pick: i, ok: !humans[i], cool: 0 }));
   s.selT = 0;
   sfx(s, 'select');
 }
@@ -428,13 +407,15 @@ function updateSelect(s, dt) {
   s.selT += dt * 1000;
   s.sel.forEach((e, i) => {
     const p = 'P' + (i + 1) + '_';
+    // Entrar con START no confirma: primero se elige.
     if (pr['START' + (i + 1)] && !e.on) {
       e.on = true;
       e.ok = false;
+      return;
     }
     if (!e.on || e.ok) return;
     e.cool -= dt * 1000;
-    const step = h[p + 'R'] ? 1 : h[p + 'L'] ? n - 1 : h[p + 'D'] || h[p + 'U'] ? 4 : 0;
+    const step = h[p + 'R'] ? 1 : h[p + 'L'] ? n - 1 : 0;
     if (e.cool <= 0 && step) {
       e.pick = (e.pick + step) % n;
       e.cool = 170;
@@ -442,6 +423,7 @@ function updateSelect(s, dt) {
     }
     if (pr[p + '1'] || pr[p + '4'] || (pr['START' + (i + 1)] && s.selT > 300)) {
       e.ok = true;
+      e.at = s.selT;
       sfx(s, 'parry');
     }
   });
@@ -450,6 +432,8 @@ function updateSelect(s, dt) {
       if (!e.on) e.pick = (s.sel[1 - i].pick + 1 + ((Math.random() * (n - 1)) | 0)) % n;
       s.picks[i] = e.pick;
     });
+    const [a, b] = s.sel;
+    s.copy = (a.at || 0) > (b.at || 0) ? 0 : 1;
     startMatch(s, s.sel.map((e) => e.on), false);
   }
 }
@@ -461,7 +445,7 @@ function makeFighter(s, i, cpu, ci) {
   return {
     i,
     cpu,
-    c: CHARS[ci],
+    c: s.copy === i && s.picks[0] === s.picks[1] ? copyOf(CHARS[ci]) : CHARS[ci],
     x: i ? st.plats[0].x2 - 50 : st.plats[0].x1 + 50,
     y: st.floor,
     vx: 0,
@@ -475,11 +459,8 @@ function makeFighter(s, i, cpu, ci) {
     jumping: false,
     dodge: 0,
     dodged: false,
-    dashT: 0,
-    dashCd: 0,
-    airDash: false,
-    slide: 0,
-    landT: -1e9,
+    run: 0,
+    tap: { d: 0, t: -1e9 },
     susto: 0,
     lives: 2,
     act: null,
@@ -516,7 +497,10 @@ function startMatch(s, humans, demo) {
   while (STAGES[k] === s.st);
   s.st = STAGES[k];
   s.plats = s.st.plats.map((p) => Object.assign({}, p));
-  if (demo) s.picks = [(Math.random() * CHARS.length) | 0, (Math.random() * CHARS.length) | 0];
+  if (demo) {
+    s.picks = [(Math.random() * CHARS.length) | 0, (Math.random() * CHARS.length) | 0];
+    s.copy = 1;
+  }
   s.f = [0, 1].map((i) => makeFighter(s, i, !humans[i], s.picks[i]));
   s.mt = demo ? 26000 : 0;
   s.phase = -1;
@@ -584,7 +568,7 @@ function humanIntent(s, f) {
   const p = 'P' + (f.i + 1) + '_';
   const h = s.controls.held;
   const pr = s.controls.pressed;
-  // Fila de arriba: golpe, agarre, parry. Toda la fila de abajo es dash.
+  // La fila de abajo repite la de arriba.
   return {
     l: h[p + 'L'],
     r: h[p + 'R'],
@@ -592,12 +576,13 @@ function humanIntent(s, f) {
     d: h[p + 'D'],
     up: pr[p + 'U'],
     dn: pr[p + 'D'],
-    b1: pr[p + '1'],
-    b2: pr[p + '2'],
-    b3: pr[p + '3'],
-    b4: pr[p + '4'] || pr[p + '5'] || pr[p + '6'],
-    h1: h[p + '1'],
-    h2: h[p + '2'],
+    tl: pr[p + 'L'],
+    tr: pr[p + 'R'],
+    b1: pr[p + '1'] || pr[p + '4'],
+    b2: pr[p + '2'] || pr[p + '5'],
+    b3: pr[p + '3'] || pr[p + '6'],
+    h1: h[p + '1'] || h[p + '4'],
+    h2: h[p + '2'] || h[p + '5'],
   };
 }
 
@@ -612,8 +597,6 @@ function stepFighter(s, f, o, inp, dt) {
   f.land = Math.max(0, f.land - ms);
   f.jbuf = Math.max(0, f.jbuf - ms);
   f.coyote = Math.max(0, f.coyote - ms);
-  f.dashCd = Math.max(0, f.dashCd - ms);
-  f.slide = Math.max(0, f.slide - ms);
   if (f.comboShow > 0) f.comboShow -= ms;
   if (f.out > 0) {
     f.out -= ms;
@@ -655,32 +638,38 @@ function stepFighter(s, f, o, inp, dt) {
     }
   } else if (free) {
     const busy = f.act && f.act.k !== 'hold' && !(MOVES[f.act.k] && MOVES[f.act.k].air);
-    const max = 118 * c.spd;
-    if (f.dashT > 0) {
-      f.dashT -= ms;
-      if (f.dashT <= 0 && f.ground) f.vx *= 0.5;
-    } else if (dir && !(busy && f.ground)) {
-      // Lo que va más rápido que el tope (dash, salto encadenado) no se frena en el aire.
+    // Doble toque: en el piso corre; en el aire da vuelta al tiro.
+    const td = inp.tr ? 1 : inp.tl ? -1 : 0;
+    if (td) {
+      if (f.tap.d === td && s.mt - f.tap.t < 260) {
+        if (f.ground) f.run = td;
+        else {
+          f.vx = td * 150 * c.spd;
+          f.face = td;
+        }
+        puff(s, f.x - td * 6, f.y - 2, 4, WHITE);
+        f.tap.t = -1e9;
+      } else f.tap = { d: td, t: s.mt };
+    }
+    if (f.ground && f.run !== dir) f.run = 0;
+    const max = 118 * c.spd * (f.run ? 1.45 : 1);
+    if (dir && !(busy && f.ground)) {
+      // En el aire no se frena lo que ya va más rápido que el tope.
       if (Math.abs(f.vx) < max || Math.sign(f.vx) !== dir) {
         f.vx += dir * (f.ground ? 2200 : 1600) * c.spd * dt;
         if (Math.abs(f.vx) > max && Math.sign(f.vx) === dir) f.vx = dir * max;
-      } else if (f.ground && !f.slide) {
+      } else if (f.ground) {
         f.vx = approach(f.vx, dir * max, 700 * dt);
       }
       if (!f.act) f.face = dir;
+      if (f.run && f.ground && Math.random() < dt * 20) puff(s, f.x - dir * 5, f.y, 1, 0xd6bd86);
     } else if (f.ground) {
-      f.vx = approach(f.vx, 0, (f.slide ? 380 : 2400) * dt);
+      f.vx = approach(f.vx, 0, 2400 * dt);
     } else if (!dir) {
       f.vx = approach(f.vx, 0, 120 * dt);
     }
     if (f.jbuf > 0 && !busy) {
       if (f.ground || f.coyote > 0) {
-        // Salto encadenado: saltar justo al caer conserva y suma velocidad.
-        if (s.mt - f.landT < 120 && Math.abs(f.vx) > max * 0.8) {
-          f.vx = Math.sign(f.vx) * Math.min(max * 1.7, Math.abs(f.vx) * 1.12);
-          puff(s, f.x, f.y, 3, YEL);
-        }
-        f.dashT = 0;
         f.vy = -300 * c.jmp;
         f.ground = false;
         f.coyote = 0;
@@ -688,7 +677,6 @@ function stepFighter(s, f, o, inp, dt) {
         f.jumping = true;
         sfx(s, 'jump');
       } else if (f.jumps > 0) {
-        f.dashT = 0;
         f.vy = -270 * c.jmp;
         f.jumps--;
         f.jbuf = 0;
@@ -724,8 +712,7 @@ function stepFighter(s, f, o, inp, dt) {
   }
   if (g.tilt && f.ground && !(inDoor && f.refugio < 2000)) f.x += s.lat.dir * s.lat.k * 40 * dt;
 
-  if (f.dashT > 0) f.vy = 0;
-  else if (f.dodge <= 0) {
+  if (f.dodge <= 0) {
     const fast = inp.d && !f.ground && f.vy > -40;
     f.vy = Math.min(f.vy + (fast ? 1800 : 900) * dt, fast ? 420 : 300);
   }
@@ -750,19 +737,11 @@ function stepFighter(s, f, o, inp, dt) {
           f.land = 90;
           puff(s, f.x, p.y, 3, 0xd6bd86);
         }
-        // Esquive diagonal contra el piso: se desliza (wavedash).
-        if (f.dodge > 0) {
-          f.dodge = 0;
-          f.slide = 260;
-          f.vx *= 1.25;
-        }
-        if (!wasGround) f.landT = s.mt;
         f.y = p.y;
         f.vy = 0;
         f.ground = true;
         f.jumps = 1;
         f.dodged = false;
-        f.airDash = false;
         f.plat = p;
         if (f.act && MOVES[f.act.k] && MOVES[f.act.k].air) f.act = null;
         break;
@@ -804,26 +783,6 @@ function readButtons(s, f, o, inp) {
   }
   if (f.act && f.act.k === 'hold') {
     if (inp.b2) f.act.t = 999;
-    return;
-  }
-  const m = f.act && MOVES[f.act.k];
-  const late = m && f.act.t > m.s + m.a;
-  if (inp.b4 && f.dashCd <= 0 && (f.ground || !f.airDash) && (!f.act || late)) {
-    const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
-    if (dir) f.face = dir;
-    f.act = null;
-    f.dashT = 170;
-    f.dashCd = 380;
-    f.airDash = !f.ground;
-    f.vx = f.face * 330 * f.c.spd;
-    f.vy = 0;
-    sfx(s, 'dodge');
-    puff(s, f.x, f.y - 2, 4, WHITE);
-  }
-  if (inp.b1 && f.dashT > 0) {
-    f.act = { k: 'lunge', t: 0, ch: 0 };
-    f.dashT = 0;
-    sfx(s, 'whiff');
     return;
   }
   if (f.act) return;
@@ -891,13 +850,7 @@ function resolveAction(s, f, o) {
         const an = a.k === 'stomp' && o.ground ? 1.2 : m.an;
         hit(s, o, f.face, m.d * ch * f.c.pow, m.b * ch, m.gr, an, f);
         f.sty += 50;
-        if (a.k === 'stomp') {
-          if (!o.ground) o.spiked = true;
-          f.vy = -290;
-          f.jumps = 1;
-          f.dodged = false;
-          f.airDash = false;
-        }
+        if (a.k === 'stomp' && !o.ground) o.spiked = true;
       }
     }
     if (a.k === 'grab' && !a.hit && live && o.stun <= 0 && o.out <= 0) {
@@ -968,7 +921,6 @@ function hit(s, t, dir, dmg, base, growth, ang, by) {
   const v = s.f[1 - t.i];
   if (v.grabbedBy === t) v.grabbedBy = null;
   t.act = null;
-  t.dashT = 0;
   t.ground = false;
   t.spiked = false;
   t.flashT = 50;
@@ -1291,7 +1243,7 @@ function cpuIntent(s, f, o, dt) {
   ai.t -= dt * 1000;
   ai.h1 -= dt * 1000;
   const w = ai.w;
-  const out = { l: w.l, r: w.r, uh: w.uh, d: w.d, up: false, dn: false, b1: false, b2: false, b3: false, b4: false, h1: ai.h1 > 0, h2: false };
+  const out = { l: w.l, r: w.r, uh: w.uh, d: w.d, up: false, dn: false, b1: false, b2: false, b3: false, h1: ai.h1 > 0, h2: false };
   const fl = s.plats[0];
   const dx = o.x - f.x;
   const adx = Math.abs(dx);
@@ -1359,12 +1311,7 @@ function cpuIntent(s, f, o, dt) {
     if (o.y > f.y + 8) out.d = true;
     return out;
   }
-  if (adx > 70 && Math.random() < 0.25) {
-    f.face = Math.sign(dx);
-    out.b4 = true;
-    if (Math.random() < 0.5) out.b1 = true;
-    return out;
-  }
+  f.run = adx > 70 && f.ground ? Math.sign(dx) : f.run;
   if (adx > 16) {
     toward(o.x);
     if (o.y < f.y - 20 && Math.random() < 0.4) {
@@ -1995,7 +1942,7 @@ function drawHud(s, t) {
   s.msgs = s.msgs.filter((m) => t - m.t0 < m.ms);
   s.msgs.forEach((m, k) => text(g, m.str, W / 2, 104 + k * 16, 2, m.col));
 
-  if (s.help > 0 && s.mode === 'play') text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · FILA DE ABAJO DASH', W / 2, 228, 1, WHITE);
+  if (s.help > 0 && s.mode === 'play') text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · DOBLE TOQUE CORRE', W / 2, 228, 1, WHITE);
 
   if (s.mode === 'demo') drawTitle(s, g, t);
   if (s.mode === 'end') drawEnd(s, g, t);
@@ -2019,11 +1966,11 @@ function drawControls(g, t) {
     g.fillStyle(i < 3 ? cols[i] : 0x8a8a9c).fillCircle(x, y + (on ? 1 : 0), 5);
     text(g, String(i + 1), x + 1, y - 2, 1, WHITE);
   }
-  text(g, '1 GOLPE (CAMBIA CON LA DIRECCIÓN)\n2 AGARRA / LANZA   3 PARRY\nFILA DE ABAJO: DASH', 60, 70, 1, WHITE, 0);
-  text(g, 'COMBOS', W / 2, 110, 2, YEL);
+  text(g, '1 GOLPE (CAMBIA CON LA DIRECCIÓN)\n2 AGARRA Y LANZA\n3 PARRY · EN EL AIRE ESQUIVA', 60, 70, 1, WHITE, 0);
+  text(g, 'TRUCOS', W / 2, 110, 2, YEL);
   text(
     g,
-    'DASH + 1: EMBESTIDA\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nEN EL AIRE ABAJO + 1: PISOTÓN Y REBOTA\nEN EL AIRE 3: ESQUIVE · AL PISO SE DESLIZA\nSALTA JUSTO AL CAER: MÁS VELOCIDAD\n1 + 2 CON LA BARRA LLENA: REMEZÓN',
+    'DOBLE TOQUE ADELANTE: CORRE\nDOBLE TOQUE EN EL AIRE: DA VUELTA AL TIRO\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nARRIBA + 1: GOLPE HACIA ARRIBA · ABAJO + 1: BARRIDA\nEN EL AIRE ABAJO + 1: PISOTÓN\n1 + 2 CON LA BARRA LLENA: REMEZÓN',
     W / 2,
     128,
     1,
@@ -2045,7 +1992,7 @@ function drawTitle(s, g, t) {
   g.fillStyle(K, 0.7).fillRect(0, 214, W, 26);
   if (((t / 450) | 0) % 2) text(g, 'PRESIONA START', W / 2, 217, 2, BLUE);
   const r = s.records;
-  const pages = [CHARS.length + ' PERSONAJES · 3 MAPAS · 2 JUGADORES', r.rey ? `REY DEL MUEBLE: ${r.rey.n} · ${r.rey.r} SEGUIDAS` : 'REY DEL MUEBLE: SE BUSCA'].concat(
+  const pages = [CHARS.length + ' PERSONAJES · ' + STAGES.length + ' MAPAS · 2 JUGADORES', r.rey ? `REY DEL MUEBLE: ${r.rey.n} · ${r.rey.r} SEGUIDAS` : 'REY DEL MUEBLE: SE BUSCA'].concat(
     r.top.slice(0, 3).map((e, i) => `${i + 1}. ${e.n}  ${e.s} PTS  GRADO ${e.g}`),
   );
   text(g, pages[((t / 2500) | 0) % pages.length], W / 2, 232, 1, WHITE);
@@ -2091,27 +2038,30 @@ function drawPose(g, c, cx, top, z, t, vic) {
 function drawSelect(s, g, t) {
   g.fillStyle(K, 0.92).fillRect(0, 0, W, H);
   text(g, 'ELIGE TU PERSONAJE', W / 2, 6, 2, YEL);
+  const same = s.sel[0].on && s.sel[1].on && s.sel[0].pick === s.sel[1].pick;
   CHARS.forEach((c, k) => {
-    const x0 = 8 + (k % 4) * 76;
-    const y0 = 22 + ((k / 4) | 0) * 72;
-    const cx = x0 + 38;
+    const x0 = 8 + k * 76;
+    const y0 = 26;
+    const cx = x0 + 37;
     const picked = [0, 1].filter((i) => s.sel[i].on && s.sel[i].pick === k);
-    g.fillStyle(picked.length ? 0x2d3a6e : 0x232040).fillRect(x0 + 1, y0, 74, 68);
-    picked.forEach((i, n) => g.lineStyle(2, PCOL[i]).strokeRect(x0 + 2 + n * 3, y0 + 1 + n * 3, 72 - n * 6, 66 - n * 6));
+    g.fillStyle(picked.length ? 0x2d3a6e : 0x232040).fillRect(x0 + 1, y0, 74, 112);
+    picked.forEach((i, n) => g.lineStyle(2, PCOL[i]).strokeRect(x0 + 2 + n * 3, y0 + 1 + n * 3, 72 - n * 6, 110 - n * 6));
     const ready = picked.some((i) => s.sel[i].ok);
-    const bounce = picked.length && !ready ? Math.round(Math.abs(Math.sin(t / 150)) * -3) : 0;
-    drawPose(g, c, cx, y0 + 6 + bounce, 2, t, ready);
-    text(g, c.n, cx, y0 + 50, 1, WHITE);
-    text(g, c.t, cx, y0 + 59, 1, 0xa7a7c7);
+    const bounce = picked.length && !ready ? Math.round(Math.abs(Math.sin(t / 150)) * -4) : 0;
+    drawPose(g, c, cx, y0 + 12 + bounce, 3, t, ready);
+    text(g, c.n, cx, y0 + 88, 2, WHITE);
+    text(g, c.t, cx, y0 + 102, 1, 0xa7a7c7);
   });
   s.sel.forEach((e, i) => {
     const x = i ? W - 8 : 8;
     const al = i ? 1 : 0;
-    text(g, 'P' + (i + 1) + (e.on ? ': ' + CHARS[e.pick].n : ''), x, 172, 2, PCOL[i], al);
-    text(g, !e.on ? 'START PARA JUGAR' : e.ok ? '¡LISTO!' : 'PALANCA ELIGE · 1 OK', x, 190, 1, WHITE, al);
+    // El que confirma segundo con el mismo personaje es la copia.
+    const later = (e.ok && e.at) > (s.sel[1 - i].at || 0) || (!e.ok && s.sel[1 - i].ok) || (!e.ok && !s.sel[1 - i].ok && i);
+    text(g, 'P' + (i + 1) + (e.on ? ': ' + CHARS[e.pick].n + (same && later ? ' (1)' : '') : ''), x, 150, 2, PCOL[i], al);
+    text(g, !e.on ? 'START PARA JUGAR' : e.ok ? '¡LISTO!' : 'PALANCA ELIGE · 1 OK', x, 168, 1, WHITE, al);
   });
-  text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · FILA DE ABAJO DASH', W / 2, 214, 1, 0xa7a7c7);
-  text(g, 'DASH + 1 EMBESTIDA · 1 + 2 REMEZÓN', W / 2, 224, 1, 0xa7a7c7);
+  text(g, '1 GOLPE · 2 AGARRA · 3 PARRY', W / 2, 214, 1, 0xa7a7c7);
+  text(g, 'DOBLE TOQUE CORRE · 1 + 2 REMEZÓN', W / 2, 224, 1, 0xa7a7c7);
 }
 
 function drawEnd(s, g, t) {
