@@ -223,55 +223,282 @@ function drawFace(g, ch, face, cx, top, mood, t, sc) {
   }
 }
 
-// ---------- Mapas ----------
+// ---------- Mapas y fondos vivos ----------
+// Cada mapa es un descriptor chico: nombre, piso, plataformas y puertas de la mitad
+// izquierda (se reflejan), objetos, y una lista de capas de lejos a cerca.
+// Las capas desde el índice `a` se redibujan cada cuadro: así lo que se mueve
+// queda siempre detrás de lo que está más cerca.
+const STAGES = (() => {
+  let G, C, S, Tm, Sc;
 
-const STAGES = [
-  {
-    n: 'EL DEPTO',
-    floor: 200,
-    plats: [
-      { x1: 40, x2: 280, y: 200, solid: true },
-      { x1: 130, x2: 190, y: 168 },
-      { x1: 48, x2: 100, y: 130, brk: true },
-      { x1: 220, x2: 272, y: 130, brk: true },
+  // Paleta indexada. Por hora (día, atardecer, noche): 4 franjas de cielo, astro y luz de ventana.
+  // Después, los colores apagados del resto, desde el índice 6.
+  const P = (
+    '6a94c082a8cc9cbcd6b6cedeeee6c84e5a6e' +
+    '4c41707a5c88ac707cd29a7ae8b070a88a62' +
+    '161c361e284a28345c34406cd8d8ccffd27a' +
+    '7d88a2d6dce26e7c684c54705c6480c2b69ea89c867a5c443e303098a0aa667e58e6d4a6c8b48a' +
+    '4c7894b4ccd2a85a505c78a0c4ac6484a070b88a8a8c8c945a5a66c49a7a3a3436d6d2c6c084604c4c56'
+  )
+    .match(/.{6}/g)
+    .map((h) => parseInt(h, 16));
+  const mix = (a, b, k) => [16, 8, 0].reduce((r, s) => r | ((((a >> s) & 255) * (1 - k) + ((b >> s) & 255) * k) << s), 0);
+  // Hora del día como cambio de paleta: cielo propio y un tinte sobre todo lo demás.
+  const PALS = [0, 1, 2].map((i) => P.slice(i * 6, i * 6 + 6).concat(P.slice(18).map((c) => mix(c, [0, 0x8a5070, 0x101830][i], [0, 0.25, 0.5][i]))));
+
+  // Primitivas de dibujo. Un color menor que la paleta es un índice; si no, va tal cual.
+  const R = (x, y, w, h, c) => G.fillStyle(C[c] || c).fillRect(x | 0, y | 0, w | 0, h | 0);
+  const T = (a, b, c, d, e, f, k) => G.fillStyle(C[k]).fillTriangle(a, b, c, d, e, f);
+  const line = (a, b, c, d) => G.lineStyle(1, C[29]).lineBetween(a, b, c, d);
+  const rnd = (n) => ((S = (S * 69069 + 1) >>> 0) >>> 16) % n;
+  const wrap = (v, m) => ((v % m) + m) % m;
+  const rects = (...a) => {
+    for (let i = 0; i < a.length; i += 5) R(...a.slice(i, i + 5));
+  };
+  // Rectángulos reflejados en el eje central: props simétricos con la mitad de datos.
+  const sym = (...a) => {
+    rects(...a);
+    for (let i = 0; i < a.length; i += 5) R(W - a[i] - a[i + 2], ...a.slice(i + 1, i + 5));
+  };
+  // Un rectángulo repetido con paso fijo: franjas, barrotes, ventanas en fila.
+  const rep = (n, dx, dy, x, y, w, h, c) => {
+    for (let i = 0; i < n; i++) R(x + i * dx, y + i * dy, w, h, c);
+  };
+
+  // Cielo en franjas y astro: sol, sol bajo o luna según la paleta.
+  const sky = (x, y) => {
+    for (let i = 0; i < 4; i++) R(0, i * 40, W, i > 2 ? H : 40, i);
+    G.fillStyle(C[4]).fillCircle(x, y, 9);
+  };
+  // Cerros por semilla; la cordillera lleva nieve.
+  const hills = (y, s, c, h, snow) => {
+    S = s;
+    for (let x = -30; x < W + 30; x += 30 + rnd(40)) {
+      const k = h / 2 + rnd(h / 2);
+      T(x - k * 1.6, y, x, y - k, x + k * 1.6, y, c);
+      if (snow) T(x - k * 0.4, y - k * 0.75, x, y - k, x + k * 0.4, y - k * 0.75, 7);
+    }
+    R(0, y, W, H, c);
+  };
+  // Ciudad por semilla: bloques y ventanas que se prenden con la hora.
+  const city = (y, s, hm) => {
+    S = s;
+    for (let x = 0, w; x < W; x += w) {
+      w = 10 + rnd(16);
+      const h = 10 + rnd(hm);
+      R(x, y - h, w, H, 9 + rnd(2));
+      for (let v = y - h + 3; v < y - 2; v += 6) for (let u = x + 2; u < x + w - 2; u += 4) rnd(3) || R(u, v, 1, 2, 5);
+    }
+  };
+  // Fila de casas por semilla: color, techo, ventanas y puerta; reja y antejardín si se pide.
+  // Sirve para la pobla, el patio y la costanera.
+  const houses = (x0, n, w, b, s, h, reja) => {
+    S = s;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * w;
+      const t = b - h;
+      R(x + 1, t, w - 2, h, [21, 22, 23, 24, 25, 31, 11][rnd(7)]);
+      rnd(2) ? R(x, t - 3, w, 3, 15) : T(x - 1, t, x + w / 2, t - w / 4, x + w + 1, t, 21);
+      R(x + w * 0.1, t + h * 0.25, w * 0.2, h * 0.3, 5);
+      R(x + w * 0.7, t + h * 0.25, w * 0.2, h * 0.3, 5);
+      if (w > 20) R(x + w * 0.35, b - h * 0.6, w * 0.3, h * 0.6, 14);
+      if (reja) {
+        R(x + 2, b - 6, 9, 6, 16);
+        rep(w / 4, 4, 0, x, b - 10, 1, 10, 29);
+        R(x, b - 10, w, 1, 29);
+      }
+    }
+  };
+  // Postes con luminaria y cable con comba.
+  const poles = (y, b, ...xs) =>
+    xs.forEach((x, i) => {
+      R(x, y, 2, b - y, 29);
+      R(x - 5, y + 3, 6, 1, 29);
+      R(x - 6, y + 4, 3, 2, 5);
+      const n = xs[i + 1];
+      if (n) line(x, y + 1, (x + n) / 2, y + 9), line((x + n) / 2, y + 9, n, y + 1);
+    });
+
+  // Actores. Sprites en grupos de 5 letras: x+20, alto, ancho, largo, color.
+  // Color 0 = el del parámetro; 1 y 2 = piernas de cada paso.
+  const PER = 'BD52MBB55LA=780B5251E5251A5252F5252';
+  const SPR = [
+    PER, // persona
+    '<9230>7;40H:540H;22MK911M?3231G3231@3232F3232', // perro
+    PER + 'G;41LJ:@6=K=53?Q>64JV<32EL444MU444M', // chatarrero con carretón
+    '6:L8089F3565L1J:242MJ242M', // micro
+    ':4D20<2@20C935FC<33L', // bote
+  ];
+  // Caminante genérico: persona, perro, chatarrero con carretón, micro o bote.
+  // Velocidad 0 = quieto (vecino asomado). Persona y perro saltan después de un KO.
+  const walk = (y, sp, off, k, c) => {
+    const d = sp < 0 ? -1 : 1;
+    const st = sp ? ((Tm / Math.abs(sp * 5)) | 0) % 2 : 0;
+    const x = sp ? wrap(Tm / sp + off, 400) - 40 : off;
+    y -= k < 2 && Sc.cheer > 0 ? Math.abs(Math.sin(Tm / 90 + off)) * 5 : st;
+    const s = SPR[k];
+    for (let i = 0; i < s.length; i += 5) {
+      const [dx, up, w, h, q] = [...s.substr(i, 5)].map((ch) => ch.charCodeAt() - 48);
+      if (q > 2 || q == st + 1 || !q) R(d > 0 ? x + dx - 20 : x + 20 - dx - w, y - up, w, h, q > 2 ? q : q ? 29 : c);
+    }
+  };
+  // Bandada: gaviotas o palomas que cruzan aleteando.
+  const birds = (y, n, sp, c) => {
+    for (let i = 0; i < n; i++) {
+      const x = ((Tm / sp + i * 97) % 380) - 30;
+      const v = y + i * 9 + Math.sin(Tm / 300 + i) * 3;
+      R(x, v, 5, 1, c);
+      R(x + 1, v + (((Tm / 120 + i) | 0) % 2 ? -2 : 1), 3, 2, c);
+    }
+  };
+  // Olas: líneas de espuma que corren, más largas mientras más cerca, y la orilla que va y viene.
+  const waves = (y, n, sx) => {
+    for (let i = 0; i < n; i++) for (let k = 0; k < 5; k++) R(wrap(k * 67 + i * 31 + (Tm / (40 - i * 4)) * (i % 2 || -1), 360) - 20, y + i * 8, 6 + i * 2, 1, 20);
+    const f = 3 + Math.sin(Tm / 500) * 3;
+    R(sx - 6 - f, 199, 6 + f, 2, 20);
+    R(W - sx, 199, 6 + f, 2, 20);
+  };
+  // Parrilla: brasas que titilan y humo que sube.
+  const smoke = (x, y, w) => {
+    for (let i = 0; i < w; i += 6) R(x + i, y, 3, 1, Math.random() < 0.5 ? ORANGE : RED);
+    for (let i = 0; i < 5; i++) {
+      const k = ((Tm / 40 + i * 37) % 80) / 80;
+      G.fillStyle(C[30], 0.5 * (1 - k)).fillRect(x + w / 2 - 8 + i * 4 + Math.sin(Tm / 300 + i) * 4, y - 4 - k * 60, 3, 3);
+    }
+  };
+  // Ropa tendida en un cordel; flamea más con cada grado.
+  const ropa = (x, y, n, dx, dy) => {
+    line(x - 8, y, x + n * dx, y + n * dy);
+    for (let i = 0; i < n; i++) R(x + i * dx + Math.sin(Tm / 250 + i) * (2 + Sc.phase), y + i * dy + 1, 8, 10, [21, 30, 22, 23, 24][i % 5]);
+  };
+  // Lámpara colgante que se mece más con cada grado.
+  const lamp = (x, y, l) => {
+    const a = Math.sin(Tm / (Sc.phase > 3 ? 260 : 900)) * (0.08 + 0.1 * Math.max(0, Sc.phase));
+    const u = x + Math.sin(a) * l;
+    const v = y + Math.cos(a) * l;
+    line(x, y, u, v);
+    T(u - 6, v + 5, u + 6, v + 5, u, v - 1, 29);
+    R(u - 1, v + 5, 3, 2, 5);
+  };
+  // Estática de la tele y luz que parpadea.
+  const noise = (x, y, w, h) => {
+    for (let v = 0; v < h; v += 2) for (let u = 0; u < w; u += 2) R(x + u, y + v, 2, 2, Math.random() < 0.5 ? 20 : 22);
+  };
+  const blink = (x, y) => ((Tm / 600) | 0) % 2 && R(x, y, 3, 3, RED);
+
+  const draw = (e) => (e[0].call ? e[0](...e.slice(1)) : rects(...e));
+  const mir = (l) => l.flatMap(([a, b, ...r]) => (a + b - W ? [[a, b, ...r], [W - b, W - a, ...r]] : [[a, b, ...r]]));
+
+  // Mapas: nombre, piso, medio ancho del piso, plataformas [x1, x2, y, 1 frágil | 2 caliente]
+  // de la mitad izquierda, puertas, objetos, objeto pesado, primera capa viva y capas.
+  return [
+    [
+      'EL DEPTO', 200, 120, [[130, 190, 168], [44, 80, 132, 1]], [[52, 72]], 'tetera taza pan taza', 'tele', 9,
+      [
+        [sky, 250, 30],
+        [hills, 150, 3, 6, 50, 1],
+        [city, 215, 13, 40],
+        [36, 62, 248, 138, 11, 32, 56, 256, 6, 26, 36, 194, 248, 6, 13, 36, 200, 248, 8, 26, 136, 76, 48, 36, 14, 138, 78, 44, 32, 1],
+        [T, 138, 110, 156, 92, 176, 110, 6],
+        [rep, 15, 16, 0, 44, 62, 4, 132, 12],
+        [159, 78, 2, 32, 14, 138, 93, 44, 2, 14, 104, 82, 16, 20, 30, 104, 82, 16, 4, 21, 205, 184, 18, 16, 13, 206, 168, 16, 16, 29, 130, 168, 60, 6, 30],
+        [rep, 8, 8, 0, 130, 168, 4, 6, 21],
+        [sym, 49, 160, 26, 40, 13, 52, 163, 20, 37, 14, 134, 174, 3, 26, 13],
+        [noise, 208, 170, 12, 12],
+        [lamp, 160, 62, 16],
+      ],
     ],
-    doors: [[56, 76], [244, 264]],
-    drops: ['tetera', 'taza', 'pan', 'taza'],
-    heavy: 'tele',
-    bg: bgDepto,
-    anim: animDepto,
-  },
-  {
-    n: 'LA CASA',
-    floor: 205,
-    plats: [
-      { x1: 24, x2: 296, y: 205, solid: true },
-      { x1: 30, x2: 134, y: 128 },
-      { x1: 196, x2: 244, y: 180, hot: true },
-      { x1: 252, x2: 300, y: 150, brk: true },
+    [
+      'LA CASA', 205, 136, [[140, 180, 182, 2], [84, 116, 140]], [[95, 105]], 'chori pelota macetero teja', 'gas', 2,
+      [
+        [sky, 240, 84],
+        [hills, 150, 5, 6, 55, 1],
+        [walk, 162, 0, 150, 0, 21],
+        [walk, 163, 0, 170, 0, 22],
+        [walk, 162, 0, 278, 0, 24],
+        [0, 150, 320, 55, 11],
+        [rep, 6, 0, 9, 0, 158, 320, 1, 12],
+        [walk, 150, 30, 0, 1, 31],
+        [houses, 84, 1, 32, 205, 5, 62],
+        [houses, 204, 1, 32, 205, 1, 62],
+        [ropa, 124, 118, 6, 12, 1],
+        [138, 182, 44, 2, 29, 140, 184, 40, 5, 27, 0, 205, 320, 35, 14, 24, 205, 272, 9, 12],
+        [sym, 144, 189, 2, 16, 29],
+        [smoke, 142, 183, 36],
+      ],
     ],
-    doors: [[82, 98]],
-    drops: ['chori', 'pelota', 'macetero', 'teja'],
-    heavy: 'gas',
-    bg: bgCasa,
-    anim: animCasa,
-  },
-  {
-    n: 'EL EDIFICIO',
-    floor: 200,
-    plats: [
-      { x1: 50, x2: 270, y: 200, solid: true },
-      { x1: 64, x2: 124, y: 160 },
-      { x1: 194, x2: 252, y: 150 },
-      { x1: 138, x2: 172, y: 110, brk: true },
+    [
+      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162]], [[63, 81]], 'macetero balde pelota teja', 'parabolica', 3,
+      [
+        [sky, 250, 84],
+        [hills, 175, 9, 8, 50],
+        [city, 200, 29, 60],
+        [birds, 40, 3, 25, 26],
+        [0, 222, 320, 18, 32],
+        [walk, 230, 18, 0, 3, 30],
+        [walk, 237, -22, 200, 3, 21],
+        [50, 200, 220, 8, 26, 54, 208, 212, 32, 27, 140, 150, 40, 50, 15, 158, 70, 3, 80, 27],
+        [rep, 13, 16, 0, 60, 214, 8, 5, 5],
+        [rep, 3, 0, 12, 140, 162, 40, 2, 26],
+        [rep, 8, 0, 8, 154, 78, 11, 1, 27],
+        [sym, 56, 162, 32, 38, 11, 54, 160, 36, 3, 26, 63, 172, 18, 28, 14],
+        [ropa, 100, 148, 3, 11, 0],
+        [blink, 158, 66],
+      ],
     ],
-    doors: [[86, 102]],
-    drops: ['macetero', 'balde', 'pelota', 'teja'],
-    heavy: 'parabolica',
-    bg: bgEdificio,
-    anim: animEdificio,
-  },
-];
+    [
+      'LA POBLA', 205, 128, [[136, 184, 160], [92, 128, 150]], [[146, 174]], 'pelota teja macetero pan', 'gas', 2,
+      [
+        [sky, 60, 84],
+        [hills, 150, 3, 6, 55, 1],
+        [birds, 30, 3, 30, 26],
+        [houses, 0, 8, 40, 180, 5, 34, 1],
+        [0, 180, 320, 25, 26],
+        [walk, 198, 45, 0, 2, 22],
+        [walk, 201, -12, 100, 1, 13],
+        [walk, 196, -28, 250, 0, 25],
+        [poles, 150, 205, 20, 300],
+        [134, 158, 52, 3, 27, 140, 166, 40, 20, 27, 152, 170, 16, 8, 5, 144, 190, 32, 2, 13, 0, 205, 320, 35, 32, 32, 205, 256, 8, 26],
+        [sym, 138, 161, 2, 44, 27, 90, 150, 38, 10, 16, 96, 160, 26, 4, 16, 106, 164, 4, 41, 13],
+      ],
+    ],
+    [
+      'LA PLAYA', 200, 130, [[136, 184, 150], [90, 124, 164]], [[148, 172]], 'pelota balde chori pelota', 'sandia', 4,
+      [
+        [sky, 250, 84],
+        [hills, 140, 7, 8, 40],
+        [houses, 0, 20, 16, 140, 9, 10],
+        [0, 140, 320, 100, 19, 0, 140, 320, 1, 20],
+        [birds, 36, 4, 22, 30],
+        [walk, 160, 60, 0, 4, 21],
+        [waves, 150, 6, 30],
+        [30, 200, 260, 40, 17, 30, 210, 260, 30, 18, 134, 150, 52, 5, 30, 158, 124, 2, 26, 27, 160, 124, 8, 5, 21, 146, 180, 28, 20, 21, 154, 186, 12, 14, 14],
+        [sym, 140, 155, 3, 45, 30, 90, 164, 34, 2, 21, 93, 166, 28, 2, 21, 97, 168, 20, 2, 21, 100, 164, 3, 6, 30, 107, 164, 3, 6, 30, 114, 164, 3, 6, 30, 106, 170, 2, 30, 27],
+      ],
+    ],
+  ].map(([n, floor, hw, pl, dr, drops, heavy, a, L]) => ({
+    n,
+    floor,
+    plats: [[160 - hw, 160 + hw, floor, 3], ...mir(pl)].map(([x1, x2, y, f]) => ({ x1, x2, y, solid: f > 2, brk: f == 1, hot: f == 2 })),
+    doors: mir(dr),
+    drops: drops.split(' '),
+    heavy,
+    // Estático: una vez por partido, con la hora elegida (0 día, 1 atardecer, 2 noche).
+    bg(g, tod) {
+      G = g;
+      C = PALS[tod | 0];
+      L.slice(0, a).map(draw);
+    },
+    // Vivo: actores y todo lo que está delante de ellos, cada cuadro.
+    anim(g, t, s) {
+      G = g;
+      C = PALS[s.tod | 0];
+      Tm = t;
+      Sc = s;
+      L.slice(a).map(draw);
+    },
+  }));
+})();
 
 const OBJS = {
   tetera: { w: 8, h: 6, dmg: 10, brk: true },
@@ -285,6 +512,7 @@ const OBJS = {
   tele: { w: 13, h: 11, dmg: 16, brk: true, heavy: true },
   gas: { w: 8, h: 12, dmg: 16, heavy: true },
   parabolica: { w: 13, h: 10, dmg: 15, brk: true, heavy: true },
+  sandia: { w: 12, h: 9, dmg: 15, brk: true, heavy: true },
 };
 
 // El temblor: cada grado cambia una sola regla.
@@ -340,7 +568,8 @@ function create() {
   s.idle = 0;
   s.picks = [0, 1];
 
-  s.world = s.add.container(W / 2, H / 2);
+  // Un poco más grande que la pantalla para que al inclinarse no se vean las esquinas.
+  s.world = s.add.container(W / 2, H / 2).setScale(1.05);
   s.bg = s.add.graphics({ x: -W / 2, y: -H / 2 });
   s.dyn = s.add.graphics({ x: -W / 2, y: -H / 2 });
   s.world.add([s.bg, s.dyn]);
@@ -1670,220 +1899,15 @@ function drawObj(s, g, ob) {
     b(0x5c5c6e, 0, 2, 13, 9);
     g.fillStyle(0x9fe0c8).fillRect(x + 2, y + 4, 8, 5);
     g.fillStyle(K).fillRect(x + 3, y, 1, 2).fillRect(x + 9, y, 1, 2);
+  } else if (k === 'sandia') {
+    b(0x3f7a3a, 0, 1, 12, 8);
+    g.fillStyle(0x7ab04a).fillRect(x + 3, y + 1, 2, 8).fillRect(x + 7, y + 1, 2, 8);
   } else if (k === 'gas') {
     b(ORANGE, 0, 2, 8, 10);
     b(0x8a8a9c, 2, 0, 4, 2);
   } else {
     b(0xb8c0cc, 0, 0, 13, 7);
     g.fillStyle(K).fillRect(x + 6, y + 7, 1, 3);
-  }
-}
-
-// ---------- Fondos vivos ----------
-
-function sky(g, cols) {
-  cols.forEach((c, i) => g.fillStyle(c).fillRect(0, (i * H) / cols.length, W, H / cols.length + 1));
-}
-
-function city(g, y0, seed) {
-  for (let i = 0, x = 0; x < W; i++) {
-    const w = 14 + ((i * seed) % 18);
-    const h = 20 + ((i * 37 + seed) % 45);
-    g.fillStyle(i % 2 ? 0x16163a : 0x1e1e48).fillRect(x, y0 - h, w, h + 60);
-    x += w;
-  }
-}
-
-// Luces de la ciudad, salvo en los tramos tapados por la casa o el edificio.
-function lights(g, t, y0, seed, n, hide) {
-  for (let i = 0; i < n; i++) {
-    const x = (i * seed) % W;
-    if (((t / 900 + i * 7) | 0) % 5 === 0 || hide.some((r) => x > r[0] && x < r[1])) continue;
-    g.fillStyle(YEL, 0.8).fillRect(x, y0 + ((i * 53) % 40), 1, 1);
-  }
-}
-
-function bgDepto(g) {
-  sky(g, [0x1b1a3a, 0x232552, 0x2d3a6e, 0x3c4b85]);
-  g.fillStyle(0x5f6496).fillTriangle(0, 200, 70, 150, 150, 200).fillTriangle(100, 200, 200, 140, 300, 200).fillTriangle(220, 200, 300, 160, 360, 200);
-  g.fillStyle(WHITE).fillTriangle(200, 140, 192, 146, 208, 146).fillTriangle(70, 150, 64, 155, 76, 155);
-  city(g, 215, 13);
-  // El depto en corte.
-  g.fillStyle(0xe8d2a0).fillRect(36, 62, 248, 138);
-  for (let x = 38; x < 284; x += 8) {
-    g.fillStyle(0xdcc28c).fillRect(x, 62, 3, 138);
-    for (let y = 66; y < 196; y += 12) g.fillStyle(0xc9a974).fillRect(x + 5, y, 2, 2);
-  }
-  g.fillStyle(0x7a7a8c).fillRect(32, 56, 256, 6);
-  g.fillStyle(K).fillRect(32, 61, 256, 1);
-  g.fillStyle(0x7a4a2a).fillRect(36, 194, 248, 6);
-  // Ventana.
-  g.fillStyle(K).fillRect(136, 76, 48, 36);
-  g.fillStyle(0x2d3a6e).fillRect(138, 78, 44, 32);
-  g.fillStyle(0x7d82b8).fillTriangle(138, 110, 156, 88, 172, 110).fillTriangle(160, 110, 174, 92, 182, 110);
-  g.fillStyle(K).fillRect(159, 78, 2, 32).fillRect(138, 93, 44, 2);
-  // Calendario.
-  g.fillStyle(K).fillRect(104, 82, 16, 20);
-  g.fillStyle(WHITE).fillRect(105, 83, 14, 18);
-  g.fillStyle(RED).fillRect(105, 83, 14, 4);
-  for (let y = 89; y < 100; y += 3) for (let x = 106; x < 118; x += 3) g.fillStyle(0xa7a7a7).fillRect(x, y, 2, 2);
-  // Marcos de puerta.
-  for (const [a, b] of STAGES[0].doors) {
-    g.fillStyle(0x4f2e19).fillRect(a - 3, 160, b - a + 6, 40);
-    g.fillStyle(0x2a1a2e).fillRect(a, 163, b - a, 37);
-  }
-  // Mesa de la once.
-  for (let x = 130; x < 190; x += 4) g.fillStyle(((x - 130) / 4) % 2 ? RED : WHITE).fillRect(x, 168, 4, 6);
-  g.fillStyle(K).fillRect(130, 174, 60, 1);
-  g.fillStyle(0x4f2e19).fillRect(134, 175, 3, 25).fillRect(183, 175, 3, 25);
-  // Mueble con tele de tubo.
-  g.fillStyle(0x4f2e19).fillRect(196, 182, 30, 18);
-  g.fillStyle(0x7a4a2a).fillRect(198, 184, 26, 6).fillRect(198, 192, 26, 6);
-  g.fillStyle(K).fillRect(199, 163, 24, 19);
-  g.fillStyle(0x5c5c6e).fillRect(200, 164, 22, 17);
-  for (let i = 0; i < 7; i++) g.fillStyle(K).fillRect(209 - i, 162 - i, 1, 1).fillRect(213 + i, 162 - i, 1, 1);
-  // Losa.
-  g.fillStyle(0x8a8a9c).fillRect(36, 200, 248, 8);
-  g.fillStyle(K).fillRect(36, 207, 248, 1);
-}
-
-function animDepto(g, t, s) {
-  // Tele con estática.
-  for (let y = 167; y < 179; y += 2) for (let x = 203; x < 216; x += 2) g.fillStyle(Math.random() < 0.5 ? 0x9fe0c8 : 0x6fa898).fillRect(x, y, 2, 2);
-  // Lámpara que se mece más con cada grado.
-  const sw = Math.sin(t / (s.phase >= 4 ? 260 : 900)) * (0.08 + 0.1 * Math.max(0, s.phase));
-  const lx = Math.round(160 + Math.sin(sw) * 16);
-  const ly = Math.round(62 + Math.cos(sw) * 16);
-  g.lineStyle(1, K).lineBetween(160, 62, lx, ly);
-  g.fillStyle(K).fillTriangle(lx - 6, ly + 5, lx + 6, ly + 5, lx, ly - 1);
-  g.fillStyle(YEL).fillRect(lx - 1, ly + 5, 3, 2);
-  lights(g, t, 150, 37, 60, [[34, 286]]);
-  // El vecino golpea la pared con la escoba de vez en cuando.
-  const e = (t / 1000) % 14;
-  if (e < 1.2 && s.mode !== 'end') {
-    const k = ((e * 5) | 0) % 2;
-    g.fillStyle(0x7a4a2a).fillRect(36 + k, 90, 3, 30);
-    if (k && Math.random() < 0.3) s.parts.push({ x: 40, y: 92 + Math.random() * 20, vx: 30, vy: 0, l: 0.4, c: 0xd6bd86, z: 1 });
-  }
-}
-
-function bgCasa(g) {
-  sky(g, [0x3d3b6e, 0x8a5a9e, 0xe07a5f, 0xf4a259]);
-  g.fillStyle(YEL).fillCircle(250, 150, 16);
-  g.fillStyle(0x5a4a7a).fillTriangle(140, 160, 230, 95, 330, 160).fillTriangle(-20, 160, 60, 115, 160, 160);
-  // Muro del fondo.
-  g.fillStyle(0xc9b79c).fillRect(0, 150, W, 55);
-  for (let y = 152; y < 205; y += 6) for (let x = (y / 6) % 2 ? 0 : 6; x < W; x += 12) g.fillStyle(0xb0a084).fillRect(x, y, 11, 1);
-  // Casa con techo de zinc.
-  g.fillStyle(0xd98c5f).fillRect(30, 128, 104, 77);
-  g.fillStyle(K).fillRect(28, 126, 108, 3);
-  for (let x = 28; x < 136; x += 4) g.fillStyle(0x9aa3b0).fillRect(x, 127, 3, 2);
-  g.fillStyle(0x4f2e19).fillRect(79, 168, 22, 37);
-  g.fillStyle(0x2a1a2e).fillRect(82, 171, 16, 34);
-  g.fillStyle(K).fillRect(42, 146, 26, 18);
-  g.fillStyle(0xf4d27a).fillRect(44, 148, 22, 14);
-  g.fillStyle(RED).fillRect(44, 148, 6, 14).fillRect(60, 148, 6, 14);
-  // Parrilla.
-  g.fillStyle(K).fillRect(196, 180, 48, 2);
-  g.fillStyle(0x3a3a3a).fillRect(198, 182, 44, 6);
-  g.fillStyle(K).fillRect(202, 188, 2, 17).fillRect(236, 188, 2, 17);
-  // Patio.
-  g.fillStyle(0x9c8a6e).fillRect(24, 205, 272, 10);
-  g.fillStyle(K).fillRect(24, 215, 272, 1);
-  // Cordel de la ropa.
-  g.lineStyle(1, K).lineBetween(136, 96, 320, 104);
-}
-
-function animCasa(g, t, s) {
-  // Brasas y humo de la parrilla.
-  for (let i = 0; i < 6; i++) g.fillStyle(Math.random() < 0.5 ? ORANGE : RED).fillRect(200 + i * 7, 181, 3, 1);
-  for (let i = 0; i < 5; i++) {
-    const k = ((t / 40 + i * 37) % 80) / 80;
-    g.fillStyle(0xbfbfbf, 0.6 * (1 - k)).fillRect(210 + i * 6 + Math.sin(t / 300 + i) * 4, 178 - k * 60, 3, 3);
-  }
-  // Ropa tendida que flamea.
-  const cols = [RED, WHITE, 0x4fa3e0, YEL, 0x6fa83a];
-  for (let i = 0; i < 6; i++) {
-    const x = 150 + i * 28;
-    const y = 97 + i * 1.2;
-    const sw = Math.round(Math.sin(t / 250 + i) * (2 + s.phase));
-    g.fillStyle(K).fillRect(x - 1 + sw, y, 12, 13);
-    g.fillStyle(cols[i % 5]).fillRect(x + sw, y + 1, 10, 11);
-  }
-  // Vecinos asomados al muro: saltan con cada caída.
-  for (let i = 0; i < 3; i++) {
-    const x = [150, 172, 280][i];
-    const jump = s.cheer > 0 ? Math.abs(Math.sin(t / 90 + i)) * 6 : Math.sin(t / 700 + i);
-    const y = Math.round(140 - jump);
-    g.fillStyle(K).fillRect(x - 1, y - 1, 10, 11);
-    g.fillStyle([0xf0b48a, 0xc47f5e, 0xe0a070][i]).fillRect(x, y, 8, 10);
-    g.fillStyle([0x3b2418, 0x8a8a8a, 0x2a1a14][i]).fillRect(x, y, 8, 3);
-    g.fillStyle(K).fillRect(x + 2, y + 5, 1, 1).fillRect(x + 5, y + 5, 1, 1);
-    if (s.cheer > 0) g.fillStyle(K).fillRect(x - 2, y - 4, 2, 5).fillRect(x + 8, y - 4, 2, 5);
-  }
-  // El quiltro cruza por arriba del muro.
-  const qx = 138 + ((t / 30) % 360);
-  if (qx < W + 20) {
-    const y = 140;
-    const st = ((t / 120) | 0) % 2;
-    g.fillStyle(K).fillRect(qx - 1, y - 1, 16, 8);
-    g.fillStyle(0xb08050).fillRect(qx, y, 14, 6).fillRect(qx + 11, y - 4, 5, 5).fillRect(qx - 3, y - 2 - st, 3, 2);
-    g.fillStyle(K).fillRect(qx + 14, y - 3, 1, 1).fillRect(qx + 1 + st, y + 6, 2, 3).fillRect(qx + 10 - st, y + 6, 2, 3);
-  }
-}
-
-function bgEdificio(g) {
-  sky(g, [0x241f45, 0x3b2f6b, 0x6b4a8a, 0xc0607a]);
-  g.fillStyle(0x4a3a6a).fillTriangle(-20, 170, 80, 100, 180, 170).fillTriangle(120, 170, 230, 90, 340, 170);
-  g.fillStyle(WHITE).fillTriangle(230, 90, 220, 98, 240, 98).fillTriangle(80, 100, 72, 106, 88, 106);
-  city(g, 190, 29);
-  g.fillStyle(0x2a2a3a).fillRect(0, 228, W, 12);
-  // Azotea.
-  g.fillStyle(0x8a8a9c).fillRect(50, 200, 220, 8);
-  g.fillStyle(K).fillRect(50, 199, 220, 1).fillRect(50, 208, 220, 1);
-  g.fillStyle(0x6a6a7c).fillRect(54, 209, 212, 31);
-  // Caseta de la escala.
-  g.fillStyle(0xb8b0a0).fillRect(64, 160, 60, 40);
-  g.fillStyle(K).fillRect(64, 159, 60, 2);
-  g.fillStyle(0x4f2e19).fillRect(84, 172, 20, 28);
-  g.fillStyle(0x2a1a2e).fillRect(86, 174, 16, 26);
-  // Estanque de agua.
-  g.fillStyle(K).fillRect(193, 149, 60, 51);
-  g.fillStyle(0xb8c0cc).fillRect(194, 150, 58, 49);
-  for (let y = 158; y < 198; y += 10) g.fillStyle(0x8a94a6).fillRect(194, y, 58, 2);
-  // Antena.
-  g.fillStyle(0x6a6a7c).fillRect(153, 110, 3, 90);
-  for (let y = 116; y < 196; y += 8) g.fillStyle(0x6a6a7c).fillRect(149, y, 11, 1);
-  g.lineStyle(1, K).lineBetween(124, 140, 194, 136);
-}
-
-function animEdificio(g, t, s) {
-  lights(g, t, 150, 23, 50, [[62, 126], [150, 160], [192, 254]]);
-  // Micros que pasan por la avenida.
-  for (let i = 0; i < 2; i++) {
-    const x = ((t / (18 + i * 7) + i * 200) % 420) - 50;
-    const xx = i ? W - x : x;
-    g.fillStyle(K).fillRect(xx - 1, 229, 26, 9);
-    g.fillStyle(i ? RED : WHITE).fillRect(xx, 230, 24, 7);
-    g.fillStyle(0x9fe0c8).fillRect(xx + 2, 231, 18, 2);
-  }
-  // El edificio tapa la avenida.
-  g.fillStyle(0x6a6a7c).fillRect(54, 209, 212, 31);
-  // Luz roja de la antena.
-  if (((t / 600) | 0) % 2) g.fillStyle(RED).fillRect(153, 104, 3, 3);
-  // Ropa tendida.
-  for (let i = 0; i < 4; i++) {
-    const x = 132 + i * 15;
-    const sw = Math.round(Math.sin(t / 220 + i) * (1 + s.phase / 2));
-    g.fillStyle(K).fillRect(x - 1 + sw, 138 - i, 9, 11);
-    g.fillStyle([WHITE, 0x4fa3e0, YEL, RED][i]).fillRect(x + sw, 139 - i, 7, 9);
-  }
-  // Palomas.
-  for (let i = 0; i < 3; i++) {
-    const x = ((t / 25 + i * 90) % 400) - 40;
-    const y = 40 + i * 14 + Math.sin(t / 200 + i) * 3;
-    const fl = ((t / 100 + i) | 0) % 2;
-    g.fillStyle(0x9a9aaa).fillRect(x, y, 5, 2).fillRect(x + 1, y - (fl ? 2 : -1), 3, 2);
   }
 }
 
