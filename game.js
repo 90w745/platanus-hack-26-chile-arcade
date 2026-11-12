@@ -1432,7 +1432,7 @@ function createOverlays(s) {
   s.time.addEvent({ delay: 2500, loop: true, callback: () => refreshRecords(s, true) });
 
   const e = s.add.container(0, 0).setDepth(25);
-  e.add(s.add.rectangle(W / 2, H / 2, W, H, C.ink, 0.8));
+  e.add(s.add.rectangle(W / 2, H / 2, W, H, C.ink, 0.92));
   s.endTitle = txt(s, W / 2, 120, '', 54, '#ffd23f', 10);
   s.endSub = txt(s, W / 2, 180, '', 26, '#ffffff', 6);
   s.endBody = txt(s, W / 2, 330, '', 22, '#ffffff', 5);
