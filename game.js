@@ -406,12 +406,12 @@ const STAGES = (() => {
         [0, 150, 320, 55, 11],
         [rep, 6, 0, 9, 0, 158, 320, 1, 12],
         [rep, 5, 64, 0, 28, 150, 5, 55, 12],
-        [0, 148, 320, 3, 30, 6, 152, 14, 26, 24, 296, 150, 18, 34, 24, 244, 150, 9, 14, 24],
+        [0, 148, 320, 3, 30],
         [walk, 150, 30, 0, 1, 31],
         [houses, 84, 1, 32, 205, 5, 62],
         [houses, 204, 1, 32, 205, 1, 62],
         [ropa, 124, 118, 6, 12, 1],
-        [138, 182, 44, 2, 29, 140, 184, 40, 5, 27, 142, 184, 36, 2, 0xe0403a, 0, 205, 320, 35, 14, 24, 205, 272, 9, 12],
+        [138, 182, 44, 2, 29, 140, 184, 40, 5, 27, 140, 180, 40, 2, 0xf0903a, 0, 205, 320, 35, 14, 24, 205, 272, 9, 12],
         [sym, 144, 189, 2, 16, 29],
         [smoke, 142, 183, 36],
       ],
@@ -756,8 +756,8 @@ function simulate(s, dt) {
   // Los cuerpos no se atraviesan en el piso; nadie empuja al otro fuera de su plataforma ni a un hoyo.
   const [p, q] = s.f;
   const d = q.x - p.x;
-  if (p.ground && q.ground && p.plat === q.plat && Math.abs(d) < 10 && !p.grabbedBy && !q.grabbedBy) {
-    const m = ((10 - Math.abs(d)) / 2) * (d < 0 ? -1 : 1);
+  if (p.ground && q.ground && p.plat === q.plat && Math.abs(d) < 14 && !p.grabbedBy && !q.grabbedBy) {
+    const m = ((14 - Math.abs(d)) / 2) * (d < 0 ? -1 : 1);
     for (const [f, v] of [[p, -m], [q, m]]) {
       const x = Phaser.Math.Clamp(f.x + v, f.plat.x1, f.plat.x2);
       if (!inHole(f.plat, x)) f.x = x;
@@ -834,7 +834,7 @@ function stepFighter(s, f, o, inp, dt) {
     const g = f.grabbedBy;
     // Machacar botones para zafarse.
     if (inp.b1 || inp.b2 || inp.b3 || inp.up) f.mash++;
-    if (f.mash >= 4 + Math.min(2, f.susto / 50)) {
+    if (f.mash >= 2 + Math.min(2, f.susto / 50)) {
       f.mash = 0;
       f.grabbedBy = null;
       g.act = null;
@@ -873,7 +873,7 @@ function stepFighter(s, f, o, inp, dt) {
       } else f.tap = { d: td, t: s.mt };
     }
     if (f.ground && f.run !== dir) f.run = 0;
-    if (f.run && f.ground && Math.random() < 0.25) puff(s, f.x - f.run * 6, f.y - 1, 1, 0xc8bca8);
+    if (f.run && f.ground && Math.random() < 0.6) puff(s, f.x - f.run * 6, f.y - 1, 1, 0xc8bca8);
     const max = 118 * c.spd * (f.run ? 1.45 : 1);
     if (dir && !(busy && f.ground)) {
       // En el aire no se frena lo que ya va más rápido que el tope.
@@ -904,7 +904,7 @@ function stepFighter(s, f, o, inp, dt) {
         f.jbuf = 0;
         f.jumping = true;
         sfx(s, 'jump');
-        ring(s, f.x, f.y, WHITE, 10);
+        ring(s, f.x, f.y, WHITE, 16);
       }
     }
     // Salto variable: soltar antes es un salto corto.
@@ -923,16 +923,16 @@ function stepFighter(s, f, o, inp, dt) {
   if (f.vy >= 0) f.jumping = false;
   if (!f.ground && f.stun > 0) f.vx *= 1 - 0.9 * dt;
 
-  // Grado 8: el piso arrastra hacia un lado, salvo bajo el marco de la puerta (máximo 2 s).
+  // Desde el grado 6 el piso arrastra hacia un lado, pero no a un hoyo; bajo el marco de la puerta no arrastra durante 2 s, que se recargan afuera.
   const g = GRADOS[Math.max(0, s.phase)];
   const inDoor = f.ground && f.plat.solid && s.st.doors.some((d) => f.x > d[0] && f.x < d[1]);
   if (inDoor && g.tilt) {
     f.refugio += ms;
     if (f.refugio < 2000) gainCalma(s, f, 12 * dt);
   } else {
-    f.refugio = 0;
+    f.refugio = Math.max(0, f.refugio - ms);
   }
-  if (g.tilt && f.ground && !(inDoor && f.refugio < 2000)) f.x += s.lat.dir * s.lat.k * 40 * dt;
+  if (g.tilt && f.ground && !(inDoor && f.refugio < 2000) && !inHole(f.plat, f.x + s.lat.dir * 8)) f.x += s.lat.dir * s.lat.k * 40 * dt;
 
   const fast = inp.d && !f.ground && f.vy > -40;
   f.vy = Math.min(f.vy + (fast ? 1800 : 900) * dt, fast ? 420 : 300);
@@ -1002,7 +1002,7 @@ function readButtons(s, f, o, inp) {
     return;
   }
   if (f.act && f.act.k === 'hold') {
-    if (inp.b2 && f.act.t > 200) f.act.t = 999;
+    if (inp.b2 && f.act.t > 350) f.act.t = 999;
     return;
   }
   if (f.act) return;
@@ -1086,7 +1086,7 @@ function resolveAction(s, f, o) {
       sfx(s, 'throw');
     }
   } else if (a.k === 'remezon') {
-    if (a.t >= 130) {
+    if (a.t >= 220) {
       f.act = null;
       remezon(s, f, o);
     }
@@ -1757,7 +1757,7 @@ function render(s, t) {
     }
   }
   // Grado 7 y 8, bajo techo: caen pedazos del techo.
-  if (ph.g >= 7 && s.st.n === 'EL DEPTO' && Math.random() < 0.3) s.parts.push({ x: 20 + Math.random() * 280, y: 0, vx: 0, vy: 60, l: 3, c: 0x8a8a9c, z: 2 + ((Math.random() * 2) | 0) });
+  if (ph.g >= 7 && s.st.n === 'EL DEPTO' && Math.random() < 0.3) s.parts.push({ x: 20 + Math.random() * 280, y: 0, vx: 0, vy: 60, l: 3, c: 0xd6bd86, z: 2 + ((Math.random() * 2) | 0) });
   for (const p of s.plats) {
     if (!p.brk) continue;
     if (p.broken) g.fillStyle(0x7a4a2a).fillTriangle(p.x1, p.y, p.x1 + 6, p.y, p.x1 + 2, p.y + 20);
@@ -1768,7 +1768,7 @@ function render(s, t) {
   }
   // Lo que cae avisa con una sombra que crece.
   for (const ob of s.objs) {
-    const sy = ob.st === 'fall' ? below(s, ob.x, ob.y) : H;
+    const sy = ob.st === 'fall' && ob.vy > 150 ? below(s, ob.x, ob.y) : H;
     const w = Math.min(14, 2 + 600 / (sy - ob.y + 40));
     if (sy < H) g.fillStyle(K, 0.6).fillEllipse(ob.x, sy, w, 3).lineStyle(1, WHITE, 0.8).strokeEllipse(ob.x, sy, w, 3);
     drawObj(s, g, ob);
@@ -1793,7 +1793,7 @@ function render(s, t) {
   s.koK = s.ko ? Math.max(0, 1 - (t - s.ko.t) / 400) : 0;
   if (s.koK > 0) {
     g.fillStyle(s.ko.c, s.koK * 0.3).fillRect(0, 0, W, H);
-    g.lineStyle(3, s.ko.c, s.koK).beginPath().moveTo(s.ko.x, s.ko.y);
+    g.lineStyle(3, WHITE, s.koK).beginPath().moveTo(s.ko.x, s.ko.y);
     for (let k = 1; k < 9; k++) g.lineTo(s.ko.x + ((W / 2 - s.ko.x) * k) / 8, s.ko.y + ((H / 2 - s.ko.y) * k) / 8 + (k & 1 ? -10 : 10));
     g.strokePath();
   }
@@ -1837,7 +1837,7 @@ function drawFighter(s, g, f, t) {
   if (f.susto >= 100 && f.flashT <= 0) g.fillStyle(0x7fd0ea).fillRect(cx - f.face * 7, ht + 3 + (((t / 120) | 0) % 3), 1, 2);
   if (a === 'remezon') g.lineStyle(2, RED, 0.9).strokeCircle(cx, feet - 13, 6 + f.act.t / 4);
   if (a === 'upper' && f.act.t >= m.s && f.act.t < m.s + m.a) g.lineStyle(2, WHITE, 0.8).beginPath().arc(cx, feet - 16, 13, f.face > 0 ? 0.5 : 2.64, f.face > 0 ? -1.7 : 4.84, f.face > 0).strokePath();
-  if (a === 'parry' && f.act.t < 160) g.lineStyle(2, 0x9fe8ff, 1 - f.act.t / 200).strokeCircle(cx + f.face * 3, feet - 14, 18);
+  if (a === 'parry' && f.act.t < 160) g.lineStyle(2, 0x9fe8ff, 1 - f.act.t / 200).strokeCircle(cx - f.face * 3, feet - 14, 16);
   // Marca del jugador sobre la cabeza.
   g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, ht - 7, cx + 3, ht - 7, cx, ht - 4);
 }
@@ -1882,8 +1882,7 @@ function drawObj(s, g, ob) {
     g.fillStyle(K).fillRect(x + 3, y, 1, 2).fillRect(x + 9, y, 1, 2);
   } else if (k === 'sandia') {
     // Una tajada: carne roja, cáscara verde y pepas.
-    b(RED, 0, 1, 12, 7);
-    g.fillStyle(0x3f7a3a).fillRect(x, y + 6, 12, 2);
+    g.fillStyle(K).slice(x + 6, y + 1, 8, 0, Math.PI).fillPath().fillStyle(0x3f7a3a).slice(x + 6, y + 1, 7, 0, Math.PI).fillPath().fillStyle(RED).slice(x + 6, y + 1, 5, 0, Math.PI).fillPath();
     g.fillStyle(K).fillRect(x + 3, y + 3, 1, 1).fillRect(x + 6, y + 2, 1, 1).fillRect(x + 9, y + 3, 1, 1);
   } else if (k === 'gas') {
     b(ORANGE, 0, 2, 8, 10);
@@ -1976,7 +1975,7 @@ function drawControls(g, t) {
   text(g, 'TRUCOS', W / 2, 110, 2, YEL);
   text(
     g,
-    'GOLPE LE GANA AL AGARRE, AGARRE AL PARRY Y PARRY AL GOLPE\nBAJO EL MARCO DE UNA PUERTA SE RECUPERA LA CALMA\nDOBLE TOQUE ADELANTE: CORRE · EN EL AIRE: DA VUELTA\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nARRIBA + 1: GOLPE HACIA ARRIBA · ABAJO + 1: BARRIDA\nEN EL AIRE ABAJO + 1: PISOTÓN\n1 + 2 CON LA BARRA DE CALMA LLENA: REMEZÓN',
+    'GOLPE LE GANA AL AGARRE, AGARRE AL PARRY Y PARRY AL GOLPE\nLA CALMA SUBE AL RECIBIR, CON PARRY Y BAJO EL MARCO\nDOBLE TOQUE ADELANTE: CORRE · EN EL AIRE: DA VUELTA\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nARRIBA + 1: GOLPE HACIA ARRIBA · ABAJO + 1: BARRIDA\nEN EL AIRE ABAJO + 1: PISOTÓN\n1 + 2 CON LA BARRA DE CALMA LLENA: REMEZÓN',
     W / 2,
     128,
     1,
@@ -1997,7 +1996,7 @@ function drawTitle(s, g, t) {
   const a = GRADOS[Math.max(0, s.phase)].g - 2;
   [...'¿SE MOVIÓ?'].forEach((ch, i) => {
     const y = 98 + Math.round(Math.sin(i * 9 + ((t / 90) | 0)) * a * 0.6);
-    text(g, ch, 66 + i * 20, y + 3, 5, RED, 0);
+    text(g, ch, 63 + i * 20, y + 5, 5, RED, 0);
     text(g, ch, 63 + i * 20, y, 5, YEL, 0);
   });
   g.lineStyle(1, RED).beginPath().moveTo(64, 127);
