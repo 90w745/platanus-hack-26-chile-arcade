@@ -1,5 +1,5 @@
 {
-  "game_name": "¿Se Movió? Temblor Grado 8",
-  "description": "Pelea para dos mientras tiembla cada vez más fuerte. Elige entre 4 personajes, golpea, agarra lo que se cae, haz parry y saca a tu rival de la pantalla antes de que el grado 8 te saque a ti. Cinco mapas al azar: el depto, la casa, el edificio, la pobla y la playa.",
+  "game_name": "¿Se Movió? Pelea en pleno temblor",
+  "description": "Todo temblor en Chile empieza igual: alguien pregunta \"¿se movió?\". Aquí sí se movió, y cada vez más. Dos jugadores pelean en el depto, la casa, el edificio, la pobla o la playa mientras el piso se triza, se cae la tele y todo se inclina. Golpe, agarre o parry: sácalo de la pantalla antes de que el piso te saque a ti. ¿Quién será el rey del mueble?",
   "player_mode": "two_player"
 }
