@@ -927,7 +927,7 @@ function stepFighter(s, f, o, inp, dt) {
   const g = GRADOS[Math.max(0, s.phase)];
   const inDoor = f.ground && f.plat.solid && s.st.doors.some((d) => f.x > d[0] && f.x < d[1]);
   if (inDoor && g.tilt) {
-    f.refugio += ms;
+    f.refugio = Math.min(2000, f.refugio + ms);
     if (f.refugio < 2000) gainCalma(s, f, 12 * dt);
   } else {
     f.refugio = Math.max(0, f.refugio - ms);
@@ -1470,7 +1470,7 @@ function cpuIntent(s, f, o, dt) {
     w.r = x > f.x + 4;
   };
   if (f.grabbedBy) {
-    out.b1 = Math.random() < 0.15;
+    out.b1 = Math.random() < 0.08;
     return out;
   }
   // Volver al escenario si está afuera.
