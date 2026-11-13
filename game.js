@@ -557,7 +557,8 @@ function create() {
   s.picks = [0, 1];
 
   // El mundo va en un contenedor que se inclina y se acerca con el temblor.
-  s.world = s.add.container(W / 2, H / 2);
+  // El zoom justo para que el temblor no deje ver los bordes vacíos.
+  s.world = s.add.container(W / 2, H / 2).setScale(1.04);
   s.bg = s.make.graphics({}, false);
   s.bgt = s.add.renderTexture(-W / 2, -H / 2, W, H).setOrigin(0);
   s.dyn = s.add.graphics({ x: -W / 2, y: -H / 2 });
@@ -932,7 +933,11 @@ function stepFighter(s, f, o, inp, dt) {
   } else {
     f.refugio = Math.max(0, f.refugio - ms);
   }
-  if (g.tilt && f.ground && !(inDoor && f.refugio < 2000) && !inHole(f.plat, f.x + s.lat.dir * 8)) f.x += s.lat.dir * s.lat.k * 40 * dt;
+  if (g.tilt && f.ground && !(inDoor && f.refugio < 2000) && !inHole(f.plat, f.x + s.lat.dir * 8)) {
+    f.x += s.lat.dir * s.lat.k * 40 * dt;
+    // Polvo que queda atrás en los pies: dice hacia dónde arrastra el piso.
+    if (Math.random() < s.lat.k / 3) s.parts.push({ x: f.x, y: f.y - 2, vx: -s.lat.dir * 20, vy: -12, l: 0.4, c: 0xd6bd86, z: 2, ng: 1 });
+  }
 
   const fast = inp.d && !f.ground && f.vy > -40;
   f.vy = Math.min(f.vy + (fast ? 1800 : 900) * dt, fast ? 420 : 300);
@@ -1312,7 +1317,7 @@ function updateQuake(s, dt) {
     if (s.joltT < 250 && Math.random() < 0.5) puff(s, s.plats[0].x1 + Math.random() * (s.plats[0].x2 - s.plats[0].x1), s.plats[0].y, 1, 0x8a8a9c);
     if (s.joltT <= 0) {
       s.joltT = 1950 - g.g * 130;
-      s.kick = g.g / 2;
+      s.kick = g.g / 4;
       for (const f of s.f) {
         if (f.ground && f.out <= 0 && !f.grabbedBy && !f.act) {
           f.vy = -30 - g.g * 5;
@@ -1714,17 +1719,11 @@ function render(s, t) {
   g.clear();
   const ph = GRADOS[Math.max(0, s.phase)];
   const env = 0.35 + 0.65 * Math.max(0, Math.sin(t / 650));
-  const amp = s.mode === 'end' || s.mode === 'select' ? 0 : Math.min(1.6, ph.amp * env) + s.kick;
+  // La imagen tiembla entera y sin girar: girar y acercarse de ida y vuelta marea.
+  const amp = s.mode === 'end' || s.mode === 'select' ? 0 : (ph.amp * env) / 2 + s.kick;
   s.kick = Math.max(0, s.kick - 0.25);
   s.world.x = Math.round(W / 2 + (Math.random() - 0.5) * amp * 2);
   s.world.y = Math.round(H / 2 + (Math.random() - 0.5) * amp * 2);
-  const rot = s.lat.k * s.lat.dir * 0.1 + (amp ? Math.sin(t / 170) * ph.amp * 0.006 : 0);
-  s.world.rotation = rot;
-  // El zoom justo para que al inclinarse no se vean las esquinas vacías.
-  s.world.setScale(1.04 + Math.abs(rot) * 1.34);
-  // El fondo tiembla a otro ritmo que el primer plano.
-  s.bgt.x = -W / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
-  s.bgt.y = -H / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
 
   s.st.anim(g, t, s);
   g.fillStyle(K, 0.38).fillRect(0, 0, W, H);
