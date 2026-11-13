@@ -1,18 +1,17 @@
 // ¿SE MOVIÓ? — Temblor Grado 8
 // Pelea de dos en Santiago mientras tiembla cada vez más fuerte.
-// Bájale la vida y sácalo de la pantalla antes de que el temblor te saque a ti.
+// Bájale la vida y sácalo de la pantalla antes de que el temblor te saque a ti: no hay reloj, pierde el que cae sin vida.
 
 // Todo va dentro de una función para que el minificador acorte también los nombres de arriba.
 (() => {
 const W = 320;
 const H = 240;
 const STORAGE_KEY = 'se-movio-records-v1';
-const MATCH_MS = 75000;
 // La vida es lo que falta para este susto: cada golpe y cada caída suman, y sin vida el golpe saca volando.
 const MAX_SUSTO = 100;
 const FALL_SUSTO = 25;
 // Un golpe asusta una parte de su daño: así la vida alcanza para llegar a los grados fuertes.
-const HIT_SUSTO = 0.33;
+const HIT_SUSTO = 0.23;
 // La vida que muestra la barra: sin vida es cero, aunque el susto siga subiendo.
 const life = (f) => Math.max(0, MAX_SUSTO - f.susto);
 const MAX_RECORDS = 10;
@@ -122,7 +121,7 @@ const BODY = {
   upper1: [5, 0, 13, '13.3k./12.k3sk/12.k3sk/12.kppk./13kppk./15pk./15pk./15pk./15pk./15pk./13kppk./13kppk./9.5pk../.kpp4dk3pkk3./.k7p3k5./.k7pk7./.k7pk7./.k7pk7./..k6lk7./.k8lk6./..kwwk.kwwk6./..kwwk..kwwk5./..kwwk..kwwk5./.k3fk3.kwk5./.5k3.kfk5./9.kk6.'],
   sweep1: [6, -1, 1, '10.pk12./3.k7pk12./..kk7pk12./.kssk6pk12./.kssk6pk12./..3k6l10k3./..k8l9w3k./..k8l9w3fk/.k6w16k/.k5fk16./.7k16.'],
   akick1: [6, -2, 1, '9.dpk7./..k7pk8./.k10pk6./kSS8pk7./kSSk6pk8./.kk8lkk6./.k4w6lwk5./.k4wk4l3wk4./..3kww5k3wk3./4.kffk4.k3wk../4.3k6.k3wk./14.k3fk/15.kffk/15.3k.'],
-  stomp1: [9, 0, 3, 'kk15.kk/kss13kssk/.kpp11kppk./..kppkkp3dpkkppk../3.3k6p3k4./6.k6pk5./6.k6pk5./6.k6pk5./6.k6lk5./7.k4lk6./7.k4wk6./7.k4wk6./7.k4wk6./7.k4wk6./7.k4fk6./7.kfkkfk6./7.kk..kk6.'],
+  stomp1: [9, 0, 3, 'kk15.kk/kss13kssk/.kpp11kppk./..kppkkp3dpkkppk../3.3k6p3k4./6.k6pk5./6.k6pk5./6.k6pk5./6.k6lk5./7.k4lk6./7.kwkkwk6./7.kwkkwk6./7.kwkkwk6./7.kwkkwk6./7.k4fk6./7.kfkkfk6./7.kk..kk6.'],
   grab1: [5, 1, 0, '.kpp4dpk9./.k8p7k../.k13pssk./.k7p7kssk/.k7p8Ssk/.k7p10k/..k6lk9./.k8lk8./.kwwk..kwwk8./kwwk4.kwwk7./kwwk4.kwwk7./kwwk5.kwwk6./k3fk4.k3fk5./5k4.5k5.'],
   hold: [11, 0, 14, '4k16.4k/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kppk16.kppk/kppk16.kppk/k17pkk3pk/.9k9p4k./..4k13p4k./6.kpp4d4pk6./7.k8pk7./7.k8pk7./7.k8pk7./8.k6lk8./7.k8lk7./7.kwwk..kwwk7./6.kwwk4.kwwk6./5.k3fk4.k3fk5./5.5k4.5k5.'],
   parry: [5, -1, 0, '.kpp4dp3k..kk../.k5pkkssk.kssk./.k5pk.kssk3sk./.k5pk..k4sk../.k5pk..k4sk../.k5pk.kssk.kssk/..k6l3k3.3k/.k8lk7./.kwwk..kwwk7./kwwk4.kwwk6./kwwk4.kwwk6./kwwk5.kwwk5./k3fk4.k3fk4./5k4.5k4.'],
@@ -139,7 +138,7 @@ const HEADS = {
 const PALS = {
   PATY: { k: 0x1a1220, s: 0xf2c09a, S: 0xc98a68, h: 0x6a3a22, H: 0x4a2416, b: 0x6fd0f0, B: 0x3a98c0, p: 0xf07aa8, P: 0xc0507e, d: 0xfff0a0, l: 0xf07aa8, w: 0xf2c09a, f: 0x8ad8f0, e: 0x1a1220, r: 0xe0506a },
   CATA: { k: 0x1a1220, s: 0xf2c09a, S: 0xc98a68, h: 0xf0d060, H: 0xc8a040, b: 0x2a2a3a, B: 0x6a6a7a, p: 0xf4f0e6, P: 0xc8c0b0, d: 0x4a8ae0, l: 0xc4a46c, w: 0xf2c09a, f: 0x8a4a24, e: 0x1a1220, r: 0xe0506a },
-  CHEPO: { k: 0x1a1220, s: 0xd9a07a, S: 0xa8704f, h: 0x2a1a14, H: 0x2a1a14, b: 0xe8cc7a, B: 0x5a3020, p: 0xd02c34, P: 0x901c24, d: 0xf0e0b0, l: 0x3a3040, w: 0x3a3040, f: 0x5a3020, e: 0x1a1220, r: 0xc0504a },
+  CHEPO: { k: 0x1a1220, s: 0xd9a07a, S: 0xa8704f, h: 0x2a1a14, H: 0x2a1a14, b: 0xe8cc7a, B: 0x5a3020, p: 0xd02c34, P: 0x901c24, d: 0xf0e0b0, l: 0x56506e, w: 0x56506e, f: 0x5a3020, e: 0x1a1220, r: 0xc0504a },
   DANI: { k: 0x1a1220, s: 0xd8a07c, S: 0xa87050, h: 0x2a1a14, H: 0x2a1a14, b: 0xeceef4, B: 0x9aa0b4, p: 0xf2b42c, P: 0xb87a18, d: 0xf8d878, l: 0x44608c, w: 0x44608c, f: 0xf6f6f6, e: 0x1a1220, r: 0xc0504a },
 };
 for (const k in BODY) BODY[k][3] = unrle(BODY[k][3]);
@@ -157,7 +156,8 @@ for (const c of CHARS) {
   c.body = {};
   for (const k in BODY) {
     const [a, hx, hy, m] = BODY[k];
-    const i = m.findIndex((r) => r.includes('w'));
+    // En el salto, la barrida y el agachado la primera fila de pierna es horizontal o de cadera: ahí no se alarga.
+    const i = /^[jsd][uwo]/.test(k) ? -1 : m.findIndex((r) => r.includes('w'));
     const legs = m.filter((r) => r.includes('w')).length;
     c.body[k] = [a, hx, hy, i < 0 || (c.lg < 0 && legs < 3) ? m : m.slice(0, i).concat(Array(Math.max(0, c.lg)).fill(m[i]), m.slice(c.lg < 0 ? i + 1 : i))];
   }
@@ -166,7 +166,7 @@ for (const c of CHARS) {
 const tint = (c) => new Proxy({}, { get: (o, k) => (k === 'k' ? K : c) });
 const FLASH_PAL = tint(WHITE);
 
-// Pose de cada golpe: [arranque, golpe]. La del golpe se mantiene en el activo y en media recuperación.
+// Pose de cada golpe: [arranque, golpe]. La del golpe se mantiene hasta el final.
 const POSES = { jab: ['jab0', 'jab1'], smash: ['smash0', 'smash1'], upper: ['jab0', 'upper1'], sweep: ['dodge', 'sweep1'], akick: ['jump', 'akick1'], stomp: ['fall', 'stomp1'], grab: ['dodge', 'grab1'] };
 
 // Si los dos eligen al mismo, el segundo juega con la ropa de otro color y su nombre lleva (1).
@@ -223,7 +223,7 @@ function drawChar(g, c, fr, cx, feet, face, pal, z) {
 // Las capas desde el índice `a` se redibujan cada cuadro: así lo que se mueve
 // queda siempre detrás de lo que está más cerca.
 const STAGES = (() => {
-  let G, C, S, Tm, Sc;
+  let G, C, S, Tm, Sc, Q;
 
   // Paleta indexada. Por hora (día, atardecer, noche): 4 franjas de cielo, astro y luz de ventana.
   // Después, los colores apagados del resto, desde el índice 6.
@@ -296,8 +296,10 @@ const STAGES = (() => {
       const t = b - h;
       R(x + 1, t, w - 2, h, [21, 22, 23, 24, 25, 31, 11][rnd(7)]);
       rnd(2) ? R(x, t - 3, w, 3, 15) : T(x - 1, t, x + w / 2, t - w / 4, x + w + 1, t, 21);
-      R(x + w * 0.1, t + h * 0.25, w * 0.2, h * 0.3, 5);
-      R(x + w * 0.7, t + h * 0.25, w * 0.2, h * 0.3, 5);
+      // Desde el grado 6 las ventanas vibran en su marco, cada casa a su ritmo.
+      const q = Q && Math.sin(Tm / 40 + i) * Q;
+      R(x + w * 0.1 + q, t + h * 0.25, w * 0.2, h * 0.3, 5);
+      R(x + w * 0.7 + q, t + h * 0.25, w * 0.2, h * 0.3, 5);
       if (w > 20) R(x + w * 0.35, b - h * 0.6, w * 0.3, h * 0.6, 14);
       if (reja) {
         R(x + 2, b - 6, 9, 6, 16);
@@ -306,14 +308,23 @@ const STAGES = (() => {
       }
     }
   };
-  // Postes con luminaria y cable con comba.
+  // Postes con luminaria y cable con comba, que se mece más con cada grado. En el cable, un volantín enredado con su cola.
   const poles = (y, b, ...xs) =>
     xs.forEach((x, i) => {
       R(x, y, 2, b - y, 29);
       R(x - 5, y + 3, 6, 1, 29);
       R(x - 6, y + 4, 3, 2, 5);
       const n = xs[i + 1];
-      if (n) line(x, y + 1, (x + n) / 2, y + 9), line((x + n) / 2, y + 9, n, y + 1);
+      if (n) {
+        const u = (x + n) / 2 + Math.sin(Tm / 230) * (Sc.g - 2) * Sc.st.sw;
+        const v = y + 9 + Math.sin(Tm / 140) * (Sc.g - 3) * 0.7;
+        const k = v + ((y + 1 - v) * (262 - u)) / (n - u);
+        line(x, y + 1, u, v);
+        line(u, v, n, y + 1);
+        T(257, k - 7, 262, k - 14, 267, k - 7, 0xe53935);
+        T(257, k - 7, 262, k, 267, k - 7, 0xfdd835);
+        rects(262, k, 1, 9, 29, 263, k + 8, 1, 4, 29);
+      }
     });
 
   // Actores. Sprites en grupos de 5 letras: x+20, alto, ancho, largo, color.
@@ -355,6 +366,8 @@ const STAGES = (() => {
     R(sx - 6 - f, 199, 6 + f, 2, 20);
     R(W - sx, 199, 6 + f, 2, 20);
   };
+  // Desde el grado 6 el mar se recoge, como antes de un tsunami: queda a la vista la arena mojada, con algas.
+  const tide = (y) => Sc.g > 5 && (rects(0, (y -= Sc.g * 6), W, H, 13, 0, y, W, 1, 20), rep(9, 37, 0, 8, y + 6, 4, 2, 16));
   // Parrilla: brasas que titilan y humo que sube.
   const smoke = (x, y, w) => {
     for (let i = 0; i < w; i += 6) R(x + i, y, 3, 1, Math.random() < 0.5 ? ORANGE : RED);
@@ -366,11 +379,11 @@ const STAGES = (() => {
   // Ropa tendida en un cordel; flamea más con cada grado.
   const ropa = (x, y, n, dx, dy) => {
     line(x - 8, y, x + n * dx, y + n * dy);
-    for (let i = 0; i < n; i++) R(x + i * dx + Math.sin(Tm / 250 + i) * (2 + Sc.phase), y + i * dy + 1, 8, 10, [21, 30, 22, 23, 24][i % 5]);
+    for (let i = 0; i < n; i++) R(x + i * dx + Math.sin(Tm / 250 + i) * Math.min(5, Sc.g - 1) * Sc.st.sw, y + i * dy + 1, 8, 10, [21, 30, 22, 23, 24][i % 5]);
   };
   // Lámpara colgante que se mece más con cada grado.
   const lamp = (x, y, l) => {
-    const a = Math.sin(Tm / (Sc.phase > 3 ? 260 : 900)) * (0.08 + 0.1 * Math.max(0, Sc.phase));
+    const a = Math.sin(Tm / (Sc.g > 6 ? 260 : 900)) * Math.min(0.6, 0.1 * Sc.g - 0.22) * Sc.st.sw;
     const u = x + Math.sin(a) * l;
     const v = y + Math.cos(a) * l;
     line(x, y, u, v);
@@ -387,15 +400,17 @@ const STAGES = (() => {
   const mir = (l) => l.flatMap(([a, b, ...r]) => (a + b - W ? [[a, b, ...r], [W - b, W - a, ...r]] : [[a, b, ...r]]));
 
   // Mapas: nombre, piso, medio ancho del piso, plataformas [x1, x2, y, 1 frágil | 2 caliente | 4 mesa: abajo no cae nada]
-  // de la mitad izquierda, puertas, objetos, objeto pesado, primera capa viva y capas.
+  // de la mitad izquierda, puertas, objetos, objeto pesado, primera capa viva, cuánto se mece de lado y capas.
   return [
     [
-      'EL DEPTO', 200, 120, [[130, 190, 168, 4], [44, 80, 132, 1]], [[52, 72, 40]], 'tetera pan macetero pan', 'tele', 9,
+      'EL DEPTO', 200, 120, [[130, 190, 168, 4], [44, 80, 132, 1]], [[52, 72, 40]], 'tetera pan macetero pan', 'tele', 10, 1.15,
       [
         [sky, 306, 50],
         [hills, 150, 3, 6, 50, 1],
         [city, 215, 13, 40],
-        [36, 62, 248, 138, 11, 32, 56, 256, 6, 26, 36, 194, 248, 6, 13, 36, 200, 248, 8, 26, 136, 76, 48, 36, 14, 138, 78, 44, 32, 1],
+        [36, 62, 248, 138, 11, 32, 56, 256, 6, 26, 36, 194, 248, 6, 13, 36, 200, 248, 8, 26, 136, 76, 48, 36, 14, 138, 78, 44, 32, 1, 36, 208, 248, 32, 27],
+        // Bajo el piso, la fachada con las ventanas del depto de abajo.
+        [rep, 8, 30, 0, 48, 216, 14, 9, 5],
         [T, 138, 110, 156, 92, 176, 110, 6],
         // Por la ventana, la cordillera con nieve.
         [T, 149, 99, 156, 92, 163, 99, 7],
@@ -410,7 +425,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'LA CASA', 205, 136, [[140, 180, 182, 2], [84, 116, 140]], [[95, 105, 37]], 'chori pelota macetero teja', 'gas', 2,
+      'LA CASA', 205, 136, [[140, 180, 182, 2], [84, 116, 140]], [[95, 105, 37]], 'chori pelota macetero teja', 'gas', 2, 0.8,
       [
         [sky, 240, 84],
         [hills, 150, 5, 6, 55, 1],
@@ -433,7 +448,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162, 4]], [[63, 81, 28]], 'macetero balde pelota teja', 'parabolica', 3,
+      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162, 4]], [[63, 81, 28]], 'macetero balde pelota teja', 'parabolica', 3, 1.3,
       [
         [sky, 250, 84],
         [hills, 175, 9, 8, 50],
@@ -456,7 +471,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'LA POBLA', 205, 128, [[136, 184, 160, 4], [92, 128, 150]], [[136, 184, 42]], 'pelota teja macetero pan', 'gas', 2,
+      'LA POBLA', 205, 128, [[136, 184, 160, 4], [92, 128, 150]], [[136, 184, 42]], 'pelota teja macetero pan', 'gas', 2, 0.85,
       [
         [sky, 60, 84],
         [hills, 150, 3, 6, 55, 1],
@@ -467,16 +482,12 @@ const STAGES = (() => {
         [walk, 192, -12, 100, 1, 13],
         [walk, 189, -28, 250, 0, 25],
         [poles, 150, 205, 20, 300],
-        // Volantín enredado en el cable, con su cola.
-        [T, 257, 147, 262, 140, 267, 147, 0xe53935],
-        [T, 257, 147, 262, 154, 267, 147, 0xfdd835],
-        [262, 154, 1, 9, 29, 263, 162, 1, 4, 29],
         [134, 158, 52, 3, 27, 140, 166, 40, 20, 26, 152, 170, 16, 8, 5, 144, 196, 32, 2, 13, 0, 205, 320, 35, 32, 32, 205, 256, 8, 26],
         [sym, 138, 161, 2, 44, 27, 90, 150, 38, 10, 16, 96, 160, 26, 4, 16, 106, 164, 4, 41, 13],
       ],
     ],
     [
-      'LA PLAYA', 200, 130, [[136, 184, 150, 4], [90, 124, 164, 4]], [[136, 184, 47]], 'pelota balde chori pelota', 'sandia', 4,
+      'LA PLAYA', 200, 130, [[136, 184, 150, 4], [90, 124, 164, 4]], [[136, 184, 47]], 'pelota balde chori pelota', 'sandia', 4, 1,
       [
         [sky, 250, 84],
         [hills, 140, 7, 8, 40],
@@ -492,6 +503,7 @@ const STAGES = (() => {
         [birds, 36, 4, 22, 30],
         [walk, 160, 60, 0, 4, 21],
         [waves, 150, 6, 30],
+        [tide, 230],
         [30, 200, 260, 40, 17, 30, 210, 260, 30, 18, 134, 150, 52, 5, 30, 158, 124, 2, 26, 27, 160, 124, 8, 5, 21, 146, 180, 28, 20, 21, 154, 186, 12, 14, 14],
         // Vía de evacuación de tsunami: señal verde con flecha hacia el cerro.
         [264, 178, 2, 22, 29, 258, 166, 14, 12, 0xf6f1e7, 259, 167, 12, 10, 0x0c5930, 263, 171, 6, 2, 0xf6f1e7],
@@ -499,9 +511,10 @@ const STAGES = (() => {
         [sym, 140, 155, 3, 45, 30, 90, 164, 34, 2, 21, 93, 166, 28, 2, 21, 97, 168, 20, 2, 21, 100, 164, 3, 6, 30, 107, 164, 3, 6, 30, 114, 164, 3, 6, 30, 106, 170, 2, 30, 27],
       ],
     ],
-  ].map(([n, floor, hw, pl, dr, drops, heavy, a, L]) => ({
+  ].map(([n, floor, hw, pl, dr, drops, heavy, a, sw, L]) => ({
     n,
     floor,
+    sw,
     plats: [[160 - hw, 160 + hw, floor, 3], ...mir(pl)].map(([x1, x2, y, f]) => ({ x1, x2, y, solid: f == 3, brk: f == 1, hot: f == 2, mesa: f > 3 })),
     doors: mir(dr),
     drops: drops.split(' '),
@@ -510,6 +523,7 @@ const STAGES = (() => {
     bg(g, tod) {
       G = g;
       C = PALS[tod | 0];
+      Q = 0;
       L.slice(0, a).map(draw);
     },
     // Vivo: actores y todo lo que está delante de ellos, cada cuadro.
@@ -518,6 +532,7 @@ const STAGES = (() => {
       C = PALS[s.tod | 0];
       Tm = t;
       Sc = s;
+      Q = Math.min(2, Math.max(0, s.g - 5) / 2);
       L.slice(a).map(draw);
     },
   }));
@@ -537,23 +552,16 @@ const OBJS = {
   sandia: { w: 12, h: 9, dmg: 15, brk: true, heavy: true },
 };
 
-// El temblor: cada grado cambia una sola regla.
-const GRADOS = [
-  { t: 0, g: 3, amp: 0.3, drop: 0 },
-  { t: 6000, g: 4, amp: 0.5, drop: 0 },
-  { t: 13000, g: 5, amp: 0.7, drop: 2600 },
-  { t: 21000, g: 6, amp: 1, drop: 1700, heavy: true, tilt: 0.35 },
-  { t: 29000, g: 7, amp: 1.2, drop: 1400, breaks: true, tilt: 0.6 },
-  { t: 37000, g: 8, amp: 1.5, drop: 1100, tilt: 1 },
-];
+// Cuánto tiembla la imagen en cada grado.
+const shake = (s) => s.g * 0.2 - 0.3;
 
 // Golpes: arranque (s), activo (a), total (e), caja [x0,x1,y0,y1] desde los pies, daño, empuje base y crecimiento, ángulo.
 // Estela (w): color, centro x e y desde los pies, radio y ángulos del arco mirando a la derecha.
 const MOVES = {
-  jab: { s: 50, a: 60, e: 180, box: [3, 15, -15, -8], d: 6, b: 40, gr: 1.6, an: 0.35, w: [WHITE, 2, -12, 12, -0.4, 0.4] },
+  jab: { s: 50, a: 60, e: 180, box: [3, 15, -15, -8], d: 6, b: 40, gr: 1.6, an: 0.35, w: [WHITE, 2, -12, 12, -0.9, 0.9] },
   smash: { s: 220, a: 80, e: 440, box: [3, 18, -16, -8], d: 13, b: 110, gr: 3.1, an: 0.6, w: [YEL, 0, -12, 18, -1, 0.6] },
   upper: { s: 70, a: 80, e: 320, box: [2, 12, -27, 6], d: 9, b: 85, gr: 2.6, an: 1.35, w: [WHITE, 0, -16, 13, -1.7, 0.5] },
-  sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 0.2, w: [0xd6bd86, 2, 6, 16, -2.6, -0.4] },
+  sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 0.2, w: [0xd6bd86, 2, 14, 16, -2.2, -0.9] },
   akick: { s: 60, a: 160, e: 320, box: [3, 13, -9, 0], d: 8, b: 70, gr: 2.5, an: 0.45, air: true, w: [WHITE, 0, -10, 14, -1.2, 0.7] },
   stomp: { s: 120, a: 120, e: 380, box: [-6, 6, -4, 7], d: 10, b: 60, gr: 2.6, an: -1.2, air: true, w: [WHITE, 0, -6, 10, 0.4, 2.7] },
   grab: { s: 120, a: 80, e: 400, box: [1, 12, -16, -4] },
@@ -756,16 +764,23 @@ function startMatch(s, humans, demo) {
     s.picks = [a, (a + 1 + ((Math.random() * (CHARS.length - 1)) | 0)) % CHARS.length];
   }
   s.f = [0, 1].map((i) => makeFighter(s, i, !humans[i], s.picks[i]));
-  s.mt = demo ? 15000 : 0;
-  s.phase = -1;
+  s.mt = 0;
+  s.g = demo ? 5 : 3;
+  s.nextT = 6000 + Math.random() * 4000;
   s.dropT = 1000;
-  s.sudden = false;
   s.objs.length = 0;
   s.parts.length = 0;
   s.msgs.length = 0;
   s.winner = null;
-  s.maxG = 3;
   s.lat = { dir: 1, t: 0, k: 0 };
+  // Lo que se va a romper, en orden al azar: tramos de 16 del piso. Uno hacia el medio de cada tercio aguanta hasta el grado 12.
+  const fl = s.plats[0];
+  const n = ((fl.x2 - fl.x1) / 16) | 0;
+  s.segW = (fl.x2 - fl.x1) / n;
+  s.keep = [0, 1, 2].map((k) => (((k + 0.2 + Math.random() * 0.6) * n) / 3) | 0);
+  s.plan = [...Array(n).keys()].filter((i) => !s.keep.includes(i)).sort(() => Math.random() - 0.5);
+  s.cracks = [];
+  s.crackT = 0;
   s.warned = -1;
   s.countdown = null;
   s.cheer = 0;
@@ -805,26 +820,10 @@ function simulate(s, dt) {
   if (s.help > 0) s.help -= dt * 1000;
   if (s.mode === 'end') return;
 
-  // Pierde el que cae sin vida (en muerte súbita, el que cae). Si caen los dos en el mismo cuadro, gana el con menos susto.
+  // Pierde el que cae sin vida. Si caen los dos en el mismo cuadro, gana el con menos susto.
   const [a, b] = s.f;
-  const ko = s.f.filter((f) => checkOut(s, f) && (s.sudden || f.susto >= MAX_SUSTO));
-  if (ko.length) {
-    endMatch(s, ko.length > 1 ? (a.susto <= b.susto ? a : b) : s.f[1 - ko[0].i]);
-    return;
-  }
-
-  // Al acabarse el tiempo gana el que tiene más vida.
-  if (!s.sudden && s.mt >= MATCH_MS) {
-    if (Math.round(life(a)) !== Math.round(life(b))) {
-      endMatch(s, life(a) > life(b) ? a : b);
-    } else {
-      s.sudden = true;
-      say(s, '¡MUERTE SÚBITA!', RED);
-      sfx(s, 'alert');
-    }
-  }
-  // Tope de la muerte súbita: si nadie cae en 45 s, gana el que tiene menos susto.
-  if (s.sudden && s.mt > MATCH_MS + 45000) endMatch(s, a.susto <= b.susto ? a : b);
+  const ko = s.f.filter((f) => checkOut(s, f) && f.susto >= MAX_SUSTO);
+  if (ko.length) endMatch(s, ko.length > 1 ? (a.susto <= b.susto ? a : b) : s.f[1 - ko[0].i]);
 }
 
 function humanIntent(s, f) {
@@ -883,7 +882,7 @@ function stepFighter(s, f, o, inp, dt) {
     }
     // En alto, sobre la cabeza del que agarra.
     f.x = g.x;
-    f.y = g.y - 24;
+    f.y = g.y - 21;
     f.vx = f.vy = 0;
     return;
   }
@@ -960,19 +959,18 @@ function stepFighter(s, f, o, inp, dt) {
   if (f.vy >= 0) f.jumping = false;
   if (!f.ground && f.stun > 0) f.vx *= 1 - 0.9 * dt;
 
-  // Desde el grado 6 el piso arrastra hacia un lado, pero no a un hoyo ni fuera del piso, y nunca en un lugar seguro.
-  // Ahí la calma sube durante 2 s, que se recargan afuera.
-  const g = GRADOS[Math.max(0, s.phase)];
+  // Desde el grado 6 el piso arrastra hacia un lado, menos al más pesado, y nunca en un lugar seguro.
+  // Hasta el grado 10 no lleva a un hoyo ni fuera del piso. En un lugar seguro la calma sube durante 2 s, que se recargan afuera.
   const safe = sheltered(s, f);
-  if (safe && g.tilt) {
+  if (safe && s.g > 5) {
     f.refugio = Math.min(2000, f.refugio + ms);
     if (f.refugio < 2000) gainCalma(s, f, 12 * dt);
   } else {
     f.refugio = Math.max(0, f.refugio - ms);
   }
   const nx = f.x + s.lat.dir * 8;
-  if (g.tilt && f.ground && !safe && nx > f.plat.x1 && nx < f.plat.x2 && !inHole(f.plat, nx)) {
-    f.x += s.lat.dir * s.lat.k * 40 * dt;
+  if (s.lat.k && f.ground && !safe && (s.g > 10 || (nx > f.plat.x1 && nx < f.plat.x2 && !inHole(f.plat, nx)))) {
+    f.x += (s.lat.dir * s.lat.k * 40 * dt) / c.wt;
     // Polvo que queda atrás en los pies: dice hacia dónde arrastra el piso.
     if (Math.random() < s.lat.k / 3) s.parts.push({ x: f.x, y: f.y - 2, vx: -s.lat.dir * 20, vy: -12, l: 0.4, c: 0xd6bd86, z: 2, ng: 1 });
   }
@@ -1014,7 +1012,7 @@ function stepFighter(s, f, o, inp, dt) {
 
   // La grieta no se traga a nadie con vida: lo escupe hacia un lado y lo asusta. Sin vida, se lo traga.
   const fl = s.plats[0];
-  const h = f.y > fl.y + 2 && fl.holes && fl.holes.find((h) => f.x > h[0] - 12 && f.x < h[1] + 12);
+  const h = f.y > fl.y + 2 && f.x > fl.x1 - 3 && f.x < fl.x2 + 3 && fl.holes && fl.holes.find((h) => f.x > h[0] - 12 && f.x < h[1] + 12);
   // Adentro, las paredes de la grieta no dejan salir de lado.
   if (h) f.x = Phaser.Math.Clamp(f.x, h[0] + 2, h[1] - 2);
   if (h && f.y > fl.y + 12 && f.susto < MAX_SUSTO) {
@@ -1034,6 +1032,7 @@ function stepFighter(s, f, o, inp, dt) {
     f.hotT -= ms;
     if (f.hotT <= 0) {
       f.hotT = 350;
+      f.stun = f.stun || 120;
       f.susto += 3;
       f.vy = -180;
       f.ground = false;
@@ -1046,7 +1045,7 @@ function stepFighter(s, f, o, inp, dt) {
   if (f.act) f.act.t += MOVES[f.act.k] ? ms * c.at : ms;
   if (f.hold) {
     f.hold.x = f.x;
-    f.hold.y = f.y - 30;
+    f.hold.y = f.y - 24;
   }
 }
 
@@ -1146,7 +1145,7 @@ function resolveAction(s, f, o) {
       const inp = f.inp;
       const dir = inp.r ? 1 : inp.l ? -1 : f.face;
       o.grabbedBy = null;
-      f.act = null;
+      f.act = { k: 'throwing', t: 0 };
       if (inp.d) hit(s, o, dir, 9 * f.c.pow, 50, 1.6, 1.45, f);
       else hit(s, o, dir, 12 * f.c.pow, 90, 3, inp.uh ? 1.35 : 0.6, f);
       f.sty += 100;
@@ -1235,7 +1234,7 @@ function remezon(s, f, o) {
   ring(s, f.x, f.y - 10, RED, 24);
   sfx(s, 'remezon');
   for (const ob of s.objs) {
-    if (ob.st !== 'held') {
+    if (ob.st !== 'held' && !OBJS[ob.k].heavy) {
       ob.vy = -200;
       ob.st = 'fall';
     }
@@ -1287,8 +1286,12 @@ function checkOut(s, f) {
   return true;
 }
 
+// Reaparece sobre lo primero firme desde su lado, con 6 de piso detrás.
 function respawn(s, f) {
-  f.x = f.i ? s.st.plats[0].x2 - 50 : s.st.plats[0].x1 + 50;
+  const d = f.i ? -1 : 1;
+  let x = f.i ? s.plats[0].x2 - 50 : s.plats[0].x1 + 50;
+  while (Math.max(below(s, x, 0), below(s, x - 6 * d, 0)) > H && x > 0 && x < W) x += 4 * d;
+  f.x = x;
   f.y = 30;
   f.vx = 0;
   f.vy = 0;
@@ -1306,8 +1309,9 @@ function inHole(p, x) {
 }
 
 // Bajo una mesa o bajo el marco de la puerta el temblor no hace nada: ni arrastra, ni levanta, ni le cae algo encima.
+// Desde el grado 10 ya no hay lugar seguro.
 function sheltered(s, f) {
-  return f.ground && f.plat.solid && (s.st.doors.some((d) => f.x > d[0] && f.x < d[1]) || s.plats.some((p) => p.mesa && f.x > p.x1 && f.x < p.x2));
+  return s.g < 10 && f.ground && f.plat.solid && (s.st.doors.some((d) => f.x > d[0] && f.x < d[1]) || s.plats.some((p) => p.mesa && f.x > p.x1 && f.x < p.x2));
 }
 
 // Lo primero que hay bajo un punto: ahí van las sombras.
@@ -1325,33 +1329,24 @@ function dropHold(f) {
 
 // ---------- Temblor ----------
 
+// Cada grado dura de 6 a 10 s, al azar, y suma una regla: en el 5 cae de todo y el piso se corre de golpe, en el 6 se mece y se agrieta,
+// en el 7 se rompe lo frágil y las grietas se abren, en el 10 ya no hay lugar seguro, en el 11 el piso lleva al hoyo y en el 12 no aguanta nada.
 function updateQuake(s, dt) {
-  let ph = 0;
-  for (let i = 0; i < GRADOS.length; i++) if (s.mt >= GRADOS[i].t) ph = i;
-  const next = GRADOS[ph + 1];
-  if (next && s.warned !== ph + 1) {
-    const lead = next.g === 6 ? 3000 : 1500;
-    if (next.t - s.mt <= lead) {
-      s.warned = ph + 1;
-      sfx(s, 'alert');
-      if (next.g === 6) s.countdown = s.mt;
-    }
+  const ms = dt * 1000;
+  const fl = s.plats[0];
+  if (s.g < 12 && s.warned !== s.g && s.nextT - s.mt <= (s.g === 5 ? 3000 : 1500)) {
+    s.warned = s.g;
+    sfx(s, 'alert');
+    if (s.g === 5) s.countdown = s.mt;
   }
-  const g = GRADOS[ph];
-  if (ph !== s.phase) {
-    s.phase = ph;
-    s.maxG = Math.max(s.maxG, g.g);
-    if (ph > 0) {
-      sfx(s, 'rumble', g.g);
-      s.kick = 1 + g.g / 3;
-      s.gPop = s.now;
-    }
-    if (g.heavy) spawnObj(s, s.st.heavy, W / 2, -20);
-    if (g.breaks) {
-      const fl = s.plats[0];
-      const c = (fl.x1 + fl.x2) / 2;
-      fl.holes = [[c - 44, c - 30], [c + 30, c + 44]];
-      for (const h of fl.holes) for (let k = 0; k < 4; k++) puff(s, h[0] + 7, fl.y, 8, 0x8a8a9c);
+  if (s.g < 12 && s.mt >= s.nextT) {
+    const g = ++s.g;
+    s.nextT = s.mt + 6000 + Math.random() * 4000;
+    sfx(s, 'rumble', g);
+    s.kick = 1 + g / 3;
+    s.gPop = s.now;
+    if (g === 6) spawnObj(s, s.st.heavy, W / 2, -20);
+    if (g === 7) {
       for (const p of s.plats) {
         if (p.brk) {
           p.broken = true;
@@ -1360,62 +1355,83 @@ function updateQuake(s, dt) {
       }
       sfx(s, 'break');
     }
+    if (g === 10) say(s, '¡YA NO HAY LUGAR SEGURO!', RED, 1500);
+    if (g === 12) s.plan.push(...s.keep);
   }
-  if (g.drop) {
-    s.dropT -= dt * 1000;
+  const g = s.g;
+  // Grietas al azar, cada vez más seguido. Desde el grado 7, la que lleva 3 s se abre en un hoyo.
+  if (g > 5) {
+    s.crackT -= ms;
+    if (s.crackT <= 0 && s.plan.length) {
+      const i = s.plan.shift();
+      // Mientras haya lugares seguros, el piso de abajo no se rompe: ese tramo vuelve a la cola.
+      if ([-0.2, 0.5, 1.2].some((e) => sheltered(s, { ground: 1, plat: fl, x: fl.x1 + (i + e) * s.segW }))) s.plan.push(i);
+      else {
+        s.cracks.push({ i, t: s.mt });
+        s.crackT = 20000 / (g - 3);
+      }
+    }
+    s.cracks = s.cracks.filter((c) => {
+      if (g < 7 || s.mt - c.t < 3000) return true;
+      const a = fl.x1 + c.i * s.segW;
+      // El hoyo nuevo se junta con los que toca: el piso roto es un solo hoyo, sin dientes de tierra entre medio.
+      let h = [a - Math.random() * 2, a + s.segW + Math.random() * 2];
+      fl.holes = (fl.holes || []).filter((o) => o[1] < h[0] || o[0] > h[1] || !(h = [Math.min(h[0], o[0]), Math.max(h[1], o[1])]));
+      fl.holes.push(h);
+      for (let k = 0; k < 4; k++) puff(s, a + s.segW / 2, fl.y, 8, 0x8a8a9c);
+      sfx(s, 'break');
+      s.kick = 2;
+    });
+  }
+  if (g > 4) {
+    s.dropT -= ms;
     if (s.dropT <= 0 && s.objs.length < 7) {
-      s.dropT = g.drop;
-      const fl = s.plats[0];
+      s.dropT = 7000 / (g - 2.3);
       const kinds = s.st.drops;
       spawnObj(s, kinds[(Math.random() * kinds.length) | 0], fl.x1 + 20 + Math.random() * (fl.x2 - fl.x1 - 40), -10);
     }
   }
-  if (g.tilt) {
-    s.lat.t += dt * 1000;
-    if (s.lat.t > 3000) {
-      s.lat.t = 0;
-      s.lat.dir *= -1;
-    }
-    s.lat.k = Math.sin((s.lat.t / 3000) * Math.PI) * g.tilt;
-  } else {
-    s.lat.k = 0;
+  // El vaivén cambia de lado cada 3 s. Desde el grado 6 el piso se mece con él: más en un edificio que en una casa.
+  s.lat.t += ms;
+  if (s.lat.t > 3000) {
+    s.lat.t = 0;
+    s.lat.dir *= -1;
   }
-  // Remezones: desde el grado 5 el piso salta y lo que está suelto brinca.
-  if (g.g >= 5) {
-    s.joltT = (s.joltT || 0) - dt * 1000;
-    if (s.joltT < 250 && Math.random() < 0.5) puff(s, s.plats[0].x1 + Math.random() * (s.plats[0].x2 - s.plats[0].x1), s.plats[0].y, 1, 0x8a8a9c);
+  s.lat.k = g > 5 ? Math.sin((s.lat.t / 3000) * Math.PI) * Math.min(1.5, (g - 5) * 0.3) * s.st.sw : 0;
+  // Remezones: desde el grado 5 el piso se corre de golpe. Lo liviano apenas salta y se desliza; lo pesado solo se desliza, y menos.
+  // A los luchadores no los levanta: el arrastre del piso ya los mueve.
+  if (g > 4) {
+    s.joltT = (s.joltT || 0) - ms;
+    if (s.joltT < 250 && Math.random() < 0.5) puff(s, fl.x1 + Math.random() * (fl.x2 - fl.x1), fl.y, 1, 0x8a8a9c);
     if (s.joltT <= 0) {
-      s.joltT = 1950 - g.g * 130;
-      s.kick = g.g / 4;
-      for (const f of s.f) {
-        if (f.ground && f.out <= 0 && !f.grabbedBy && !f.act && !sheltered(s, f)) {
-          f.vy = -30 - g.g * 5;
-          f.ground = false;
-        }
-      }
+      s.joltT = 900 + Math.random() * (2400 - g * 130);
+      s.kick = g / 4;
       for (const ob of s.objs) {
         if (ob.st === 'ground') {
-          ob.st = 'fall';
-          ob.vy = -90 - Math.random() * 60;
-          ob.vx += (Math.random() - 0.5) * 60;
+          const hv = OBJS[ob.k].heavy;
+          ob.vx += s.lat.dir * (hv ? 20 : 50);
+          if (!hv) {
+            ob.st = 'fall';
+            ob.vy = -50;
+          }
         }
       }
       sfx(s, 'thud');
     }
   }
   // Desde el grado 6: polvo del techo y retumbos.
-  if (g.g >= 6) {
-    s.rumbleT = (s.rumbleT || 0) - dt * 1000;
+  if (g > 5) {
+    s.rumbleT = (s.rumbleT || 0) - ms;
     if (s.rumbleT <= 0) {
       s.rumbleT = 1300;
-      sfx(s, 'rumble', g.g - 3);
+      sfx(s, 'rumble', g - 3);
     }
     if (Math.random() < dt * 10) s.parts.push({ x: 30 + Math.random() * 260, y: 0, vx: 0, vy: 30, l: 2, c: 0xd6bd86, z: 1, ng: true });
   }
   for (const f of s.f) {
-    if (f.out <= 0 && g.g === 8) f.sty += 20 * dt;
+    if (f.out <= 0 && g > 7) f.sty += 20 * dt;
   }
-  if (s.cheer > 0) s.cheer -= dt * 1000;
+  if (s.cheer > 0) s.cheer -= ms;
 }
 
 // ---------- Objetos ----------
@@ -1449,7 +1465,8 @@ function stepObjects(s, dt) {
     if (ob.st === 'held') continue;
     if (ob.st === 'ground') {
       ob.vx = approach(ob.vx, 0, 300 * dt);
-      ob.x += ob.vx * dt;
+      // El piso que se mece arrastra lo suelto; lo pesado, menos.
+      ob.x += (ob.vx + s.lat.dir * s.lat.k * (d.heavy ? 12 : 30)) * dt;
       if (!s.plats.some((p) => !p.broken && Math.abs(ob.y - p.y) < 2 && ob.x > p.x1 && ob.x < p.x2 && !inHole(p, ob.x))) ob.st = 'fall';
       if (s.mt - ob.gt > 8000) s.objs.splice(i, 1);
       continue;
@@ -1571,8 +1588,7 @@ function cpuIntent(s, f, o, dt) {
   ai.t = 120 + Math.random() * 150;
   w.l = w.r = w.uh = w.d = false;
 
-  const g = GRADOS[Math.max(0, s.phase)];
-  if (g.tilt >= 1 && Math.random() < 0.3) {
+  if (s.g > 7 && s.g < 10 && Math.random() < 0.3) {
     const door = s.st.doors[0];
     toward((door[0] + door[1]) / 2);
     return out;
@@ -1715,7 +1731,7 @@ function saveEntries(s) {
     if (!e.done) continue;
     const n = e.letters.map((c) => String.fromCharCode(65 + c)).join('');
     s.lastName[e.f.i] = e.letters.slice();
-    r.top.push({ n, s: score(e.f), g: s.maxG });
+    r.top.push({ n, s: score(e.f), g: s.g });
     if (e.f === s.winner && s.f.every((f) => !f.cpu)) {
       r.rey = r.rey && r.rey.n === n ? { n, r: r.rey.r + 1 } : { n, r: 1 };
     }
@@ -1773,7 +1789,8 @@ function stepParticles(s, dt) {
 }
 
 function say(s, str, col, ms) {
-  s.msgs.push({ str, col, t0: s.now, ms: ms || 1300 });
+  // En el demo no hay mensajes: chocarían con el título.
+  if (s.mode !== 'demo') s.msgs.push({ str, col, t0: s.now, ms: ms || 1300 });
 }
 
 function approach(v, target, step) {
@@ -1793,13 +1810,12 @@ function paintBg(s) {
 function render(s, t) {
   const g = s.dyn;
   g.clear();
-  const ph = GRADOS[Math.max(0, s.phase)];
   const env = 0.35 + 0.65 * Math.max(0, Math.sin(t / 650));
-  // La imagen tiembla entera y sin girar: girar y acercarse de ida y vuelta marea.
-  const amp = s.mode === 'end' || s.mode === 'select' ? 0 : (ph.amp * env) / 2 + s.kick;
+  // La imagen tiembla entera y sin girar, más de lado que de arriba abajo: girar, acercarse o saltar de ida y vuelta marea.
+  const amp = s.mode === 'end' || s.mode === 'select' ? 0 : (shake(s) * env) / 2 + s.kick;
   s.kick = Math.max(0, s.kick - 0.25);
   s.world.x = Math.round(W / 2 + (Math.random() - 0.5) * amp * 2);
-  s.world.y = Math.round(H / 2 + (Math.random() - 0.5) * amp * 2);
+  s.world.y = Math.round(H / 2 + (Math.random() - 0.5) * amp * 0.7);
 
   s.st.anim(g, t, s);
   // El velo separa el fondo de lo que se pisa; de noche es más suave porque la hora ya oscurece.
@@ -1811,34 +1827,32 @@ function render(s, t) {
     g.fillStyle(K).fillRect(p.x1, p.y + 2, p.x2 - p.x1, 1);
   }
   const fl = s.plats[0];
-  const c = (fl.x1 + fl.x2) / 2;
-  // Desde el grado 5, cuando empieza a caer de todo, los lugares seguros se marcan en verde.
-  if (s.phase >= 2) {
+  // Del grado 5 al 9, cuando cae de todo, los lugares seguros se marcan en verde.
+  if (s.g > 4 && s.g < 10) {
     g.lineStyle(2, 0x3fd07a, 0.6 + 0.4 * Math.sin(t / 120));
     for (const d of s.st.doors) g.strokeRect(d[0], fl.y - d[2], d[1] - d[0], d[2]);
     for (const p of s.plats) if (p.mesa) g.strokeRect(p.x1, p.y + 3, p.x2 - p.x1, fl.y - p.y - 3);
   }
-  if (s.phase >= 3) {
-    for (const h of fl.holes || [[c - 44, c - 30], [c + 30, c + 44]]) {
-      if (fl.holes) {
-        // Piso partido: paredes dentadas de tierra y pedazos que siguen cayendo.
-        for (let y = fl.y; y < H; y += 3) {
-          const j = (y * 7) % 4;
-          const k = (y * 5) % 3;
-          g.fillStyle(0x7a4a2a).fillRect(h[0] + j - 2, y, h[1] - h[0] - j - k + 4, 3);
-          g.fillStyle(K).fillRect(h[0] + j, y, h[1] - h[0] - j - k, 3);
-        }
-        if (Math.random() < 0.1) s.parts.push({ x: h[0] + Math.random() * (h[1] - h[0]), y: fl.y, vx: 0, vy: 0, l: 0.8, c: 0x8a8a9c, z: 2 });
-      } else {
-        // Grietas que crecen hasta que el piso se parte: cortan el borde y bajan en zigzag.
-        const n = Math.min(14, 3 + (s.mt - GRADOS[3].t) / 900);
-        g.fillStyle(K).fillRect(h[0] + 7 - n, fl.y, n * 2, 2);
-        for (let k = 0; k < n; k++) g.fillRect(h[0] + 2 + ((k * 5) % 7), fl.y + k * 2, 3, 3);
-      }
+  // Piso partido: dos paredes dentadas que se cierran hacia abajo, dentro del hoyo, y pedazos que siguen cayendo.
+  // En el depto y el edificio, los que más se mecen, la pared es de concreto.
+  for (const h of fl.holes || []) {
+    for (let y = 0; y < H - fl.y; y += 3) {
+      const l = h[0] + y / 20 + ((y * 7) % 4);
+      const w = h[1] - y / 20 - ((y * y) % 5) - l;
+      g.fillStyle(s.st.sw > 1.1 ? 0x8a8a9c : 0x7a4a2a).fillRect(l, fl.y + y, w, 3);
+      g.fillStyle(K).fillRect(l + 2, fl.y + y, w - 4, 3);
     }
+    if (Math.random() < 0.06) s.parts.push({ x: h[0] + Math.random() * (h[1] - h[0]), y: fl.y, vx: 0, vy: 0, l: 0.8, c: 0x8a8a9c, z: 2 });
+  }
+  // Grietas que crecen sobre el piso: una línea quebrada que corta el borde claro y se abre hacia los lados.
+  g.fillStyle(K);
+  for (const c of s.cracks) {
+    const x = fl.x1 + (c.i + 0.5) * s.segW;
+    const n = Math.min(10, 2 + (s.mt - c.t) / 300);
+    for (let k = -n; k < n; k++) g.fillRect(x + k, fl.y + (((k * 5) & 2) >> 1), 1, Math.abs(k) < n / 3 ? 3 : 2);
   }
   // Grado 7 y 8, bajo techo: caen pedazos del techo.
-  if (ph.g >= 7 && s.st.n === 'EL DEPTO' && Math.random() < 0.3) s.parts.push({ x: 20 + Math.random() * 280, y: 0, vx: 0, vy: 60, l: 3, c: 0xd6bd86, z: 2 + ((Math.random() * 2) | 0) });
+  if (s.g > 6 && s.st.n === 'EL DEPTO' && Math.random() < 0.3) s.parts.push({ x: 20 + Math.random() * 280, y: 0, vx: 0, vy: 60, l: 3, c: 0xd6bd86, z: 2 + ((Math.random() * 2) | 0) });
   for (const p of s.plats) {
     if (!p.brk) continue;
     if (p.broken) g.fillStyle(0x7a4a2a).fillTriangle(p.x1, p.y, p.x1 + 6, p.y, p.x1 + 2, p.y + 20);
@@ -1879,7 +1893,7 @@ function render(s, t) {
     g.strokePath();
   }
   // Grado 7 y 8: la luz baja de golpe, una vez por segundo como máximo, salvo de noche, que ya está oscuro.
-  if (ph.g >= 7 && s.tod < 2 && s.mode !== 'end' && Math.sin(t / 160) > 0.97) g.fillStyle(K, 0.3).fillRect(0, 0, W, H);
+  if (s.g > 6 && s.tod < 2 && s.mode !== 'end' && Math.sin(t / 160) > 0.97) g.fillStyle(K, 0.3).fillRect(0, 0, W, H);
 
   drawHud(s, t);
 }
@@ -1899,11 +1913,11 @@ function drawFighter(s, g, f, t) {
   if (f.stun > 0 || f.grabbedBy || f.daze > 0) fr = 'hurt';
   else if (f.land > 0) fr = 'dodge';
   // En un lugar seguro, con el temblor fuerte y sin hacer nada: agachado y cubriéndose la cabeza.
-  else if (!f.act && s.phase >= 2 && Math.abs(f.vx) < 20 && sheltered(s, f)) fr = 'cubre';
-  else if (m) fr = POSES[a][f.act.t >= m.s && f.act.t < (m.s + m.a + m.e) / 2 ? 1 : 0];
+  else if (!f.act && s.g > 4 && Math.abs(f.vx) < 20 && sheltered(s, f)) fr = 'cubre';
+  else if (m) fr = POSES[a][f.act.t >= m.s ? 1 : 0];
   else if (a === 'parry') fr = 'parry';
   else if (a === 'throwing') fr = 'jab1';
-  else if (a === 'remezon') fr = 'stomp1';
+  else if (a === 'remezon') fr = 'dodge';
   else if (a === 'hold' || f.hold) fr = 'hold';
   else if (!f.ground) fr = f.vy < 0 ? 'jump' : 'fall';
   else if (Math.abs(f.vx) > 20) fr = ((t / (f.run ? 70 : 110)) | 0) % 2 ? 'run1' : 'run0';
@@ -1936,7 +1950,8 @@ function drawFighter(s, g, f, t) {
   }
   if (a === 'parry' && f.act.t < 160) g.lineStyle(2, 0x9fe8ff, 1 - f.act.t / 200).strokeCircle(cx - f.face * 3, feet - 14, 16);
   // Marca del jugador sobre la cabeza.
-  g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, ht - 7, cx + 3, ht - 7, cx, ht - 4);
+  const mk = ht - (f.hold ? 14 : 7);
+  g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, mk, cx + 3, mk, cx, mk + 3);
 }
 
 function drawObj(s, g, ob) {
@@ -1999,22 +2014,19 @@ function drawHud(s, t) {
   s.flashRect.setAlpha(s.flash);
   if (s.mode === 'select') return drawSelect(s, g, t);
   if (s.mode === 'end') return drawEnd(s, g, t);
-  const ph = GRADOS[Math.max(0, s.phase)];
 
   // Sismógrafo.
   g.fillStyle(K, 0.85).fillRect(130, 2, 60, 32);
   g.lineStyle(1, YEL).strokeRect(130.5, 2.5, 59, 31);
   g.fillStyle(RED);
-  for (let x = 0; x < 56; x++) g.fillRect(132 + x, 26 + Math.round(Math.sin(t / 30 + x * 0.9) * (ph.amp * 2.5 + s.koK * 7) * Math.random()), 1, 1);
+  for (let x = 0; x < 56; x++) g.fillRect(132 + x, 26 + Math.round(Math.sin(t / 30 + x * 0.9) * (shake(s) * 2.5 + s.koK * 7) * Math.random()), 1, 1);
   text(g, 'GRADO', 134, 5, 1, WHITE, 0);
   const pop = Math.max(0, 1 - (t - (s.gPop || 0)) / 400);
-  text(g, String(ph.g), 160, 10 - Math.round(pop * 3), 4, YEL);
-  const left = Math.max(0, Math.ceil((MATCH_MS - s.mt) / 1000));
-  text(g, s.sudden ? '!!' : ((left / 60) | 0) + ':' + String(left % 60).padStart(2, '0'), 187, 5, 1, WHITE, 1);
+  text(g, String(s.g), 160, 12 - Math.round(pop * 2), 4, YEL);
 
   // Cuenta antes del grado 6.
   const cd = s.countdown != null ? s.mt - s.countdown : -1;
-  if (cd >= 0 && cd < 3600 && s.mode !== 'end') {
+  if (cd >= 0 && cd < 3600 && s.mode === 'play') {
     const n = 3 - Math.floor(cd / 1000);
     if (((t / 120) | 0) % 2 === 0 || n <= 0) text(g, n > 0 ? '¡TEMBLOR!\n' + n : '¡TEMBLOR!', W / 2, 80, 5, RED);
   }
@@ -2087,18 +2099,16 @@ function drawTitle(s, g, t) {
     if (((t / 450) | 0) % 2) text(g, 'PRESIONA START', W / 2, 220, 2, BLUE);
     return;
   }
-  g.fillStyle(K, 0.6).fillRect(0, 92, W, 58);
+  g.fillStyle(K, 0.6).fillRect(0, 42, W, 74);
   // Cada letra tiembla por su cuenta y el trazo de abajo es un sismograma: los dos crecen con el grado.
-  const a = GRADOS[Math.max(0, s.phase)].g - 2;
+  const a = Math.min(6, s.g - 2);
   [...'¿SE MOVIÓ?'].forEach((ch, i) => {
-    const y = 98 + Math.round(Math.sin(i * 9 + ((t / 90) | 0)) * a * 0.6);
-    text(g, ch, 63 + i * 20, y + 5, 5, RED, 0);
-    text(g, ch, 63 + i * 20, y, 5, YEL, 0);
+    text(g, ch, 63 + i * 20, 62 + Math.round(Math.sin(i * 9 + ((t / 90) | 0)) * a * 0.6), 5, YEL, 0);
   });
-  g.lineStyle(1, RED).beginPath().moveTo(64, 127);
-  for (let x = 70; x < 260; x += 6) g.lineTo(x, 127 + ((x / 6) & 1 ? 1 : -1) * Math.min(a, 3));
+  g.lineStyle(1, RED).beginPath().moveTo(64, 91);
+  for (let x = 70; x < 260; x += 6) g.lineTo(x, 91 + ((x / 6) & 1 ? 1 : -1) * Math.min(a, 3));
   g.strokePath();
-  text(g, '¡SÁCALO DE LA PANTALLA!', W / 2, 134, 2, WHITE);
+  text(g, '¡SÁCALO DE LA PANTALLA!', W / 2, 98, 2, WHITE);
   g.fillStyle(K, 0.7).fillRect(0, 214, W, 26);
   if (((t / 450) | 0) % 2) text(g, 'PRESIONA START', W / 2, 217, 2, BLUE);
   const r = s.records;
@@ -2125,7 +2135,7 @@ function drawSelect(s, g, t) {
     if (same && picked.length > 1)
       [0, 1].forEach((i) => {
         const cc = i === cp ? copyOf(c) : c;
-        drawChar(g, cc, s.sel[i].ok ? 'hold' : 'idle0', cx + (i ? 17 : -17), y0 + 86, 1, cc.pal, 2);
+        drawChar(g, cc, 'idle0', cx + (i ? 17 : -17), y0 + 86, 1, cc.pal, 2);
       });
     else drawChar(g, c, ready ? 'hold' : 'idle0', cx, y0 + 86 + bounce, 1, c.pal, 3);
     text(g, c.n, cx, y0 + 88, 2, WHITE);
@@ -2149,7 +2159,7 @@ function drawEnd(s, g, t) {
   // El ganador celebra.
   const jump = Math.round(Math.abs(Math.sin(t / 220)) * -4);
   drawChar(g, w.c, 'hold', W / 2, 122 + jump, 1, w.c.pal, 3);
-  text(g, `SOBREVIVIÓ: GRADO ${s.maxG}`, W / 2, 127, 2, WHITE);
+  text(g, `SOBREVIVIÓ: GRADO ${s.g}`, W / 2, 127, 2, WHITE);
   if (s.f.every((f) => f.cpu)) return;
   text(g, s.f.map((f) => `${f.cpu ? 'CPU' : 'P' + (f.i + 1)} ${score(f)} PTS`).join('    '), W / 2, 146, 2, WHITE);
   s.entries.forEach((e, n) => {
@@ -2289,7 +2299,7 @@ function sfx(s, k, n) {
     } else if (k === 'alert') {
       for (let i = 0; i < 3; i++) tone(s, 'square', 988, 980, 0.12, 0.12, at + i * 0.22);
     } else if (k === 'rumble') {
-      noise(s, 1.4, 0.1 * Math.max(1, n - 2), 110, 0, at);
+      noise(s, 1.4, 0.1 * Phaser.Math.Clamp(n - 2, 1, 6), 110, 0, at);
     } else if (k === 'remezon') {
       tone(s, 'sine', 90, 30, 0.7, 0.6, at);
       noise(s, 0.6, 0.6, 400, 0, at);
@@ -2312,7 +2322,7 @@ const BASS = [-24, -29, -26, -19];
 function music(s) {
   if (!s.audio || s.mode !== 'play' || s.audio.state !== 'running') return;
   const ctx = s.audio;
-  const g = GRADOS[Math.max(0, s.phase)].g;
+  const g = s.g;
   const stepDur = 60 / (96 + (g - 3) * 7) / 4;
   if (s.mus.next < ctx.currentTime) s.mus.next = ctx.currentTime + 0.05;
   while (s.mus.next < ctx.currentTime + 0.12) {
