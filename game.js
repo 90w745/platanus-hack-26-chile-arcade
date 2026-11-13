@@ -1,11 +1,20 @@
 // ¿SE MOVIÓ? — Temblor Grado 8
 // Pelea de dos en Santiago mientras tiembla cada vez más fuerte.
-// Sácalo de la pantalla antes de que el temblor te saque a ti.
+// Bájale la vida y sácalo de la pantalla antes de que el temblor te saque a ti.
 
+// Todo va dentro de una función para que el minificador acorte también los nombres de arriba.
+(() => {
 const W = 320;
 const H = 240;
 const STORAGE_KEY = 'se-movio-records-v1';
 const MATCH_MS = 75000;
+// La vida es lo que falta para este susto: cada golpe y cada caída suman, y sin vida el golpe saca volando.
+const MAX_SUSTO = 100;
+const FALL_SUSTO = 25;
+// Un golpe asusta una parte de su daño: así la vida alcanza para llegar a los grados fuertes.
+const HIT_SUSTO = 0.33;
+// La vida que muestra la barra: sin vida es cero, aunque el susto siga subiendo.
+const life = (f) => Math.max(0, MAX_SUSTO - f.susto);
 const MAX_RECORDS = 10;
 const IDLE_MS = 30000;
 
@@ -50,6 +59,8 @@ const RED = 0xe0403a;
 const BLUE = 0x4fc3f7;
 const ORANGE = 0xff8a24;
 const PCOL = [BLUE, ORANGE];
+// Los golpes por dirección, en la selección y al empezar el partido.
+const MOVE_HELP = '1 GOLPE · ↑1 GANCHO · >1 FUERTE · ↓1 BARRIDA';
 
 // ---------- Letra pixelada 3x5 (cada fila es un dígito de 3 bits) ----------
 
@@ -57,7 +68,7 @@ const FONT = {};
 const FONT_SRC =
   'A25755B65656C34443D65556E74647F74644G34553H55755I72227J11152K55655L44447M57755N65555O25552P65644Q25563R65655S34216T72222U55557V55552W55775X55255Y55222Z71247' +
   '075557126227261247361216455711574616634757771122875757975716' +
-  '!22202¡20222?61202¿20243.00002,00024:02020%51245-00700+02720/11244·00200_00007(12221)42224';
+  '!22202¡20222?61202¿20243.00002,00024:02020%51245-00700+02720/11244·00200_00007(12221)42224↑02500↓05200>42124';
 for (let i = 0; i < FONT_SRC.length; i += 6) {
   FONT[FONT_SRC[i]] = [...FONT_SRC.slice(i + 1, i + 6)].map(Number);
 }
@@ -99,25 +110,25 @@ function text(g, str, x, y, sc, col, align) {
 // Un cuerpo compartido por cuadro [ancla, corrimiento x e y de la cabeza, mapa] y una cabeza por personaje.
 const unrle = (str) => str.split('/').map((r) => r.replace(/(\d+)(\D)/g, (_, n, c) => c.repeat(n)));
 const BODY = {
-  idle0: [4, 0, 0, '.kP6dkssk/kPP5pkkssk/kPP4pkppkk./kPPppdkppk3./kPP3pkpk4./kkPP3pkk4./.k6lk4./.k7lk3./k9lk../.kwwk.kwwk3./.kwwk.kwwk3./.kwwk..kwwk../k3fk..k4fk/5k..6k'],
-  run0: [7, 1, 0, '3.kP6dk3./..kPP6p3k./.kkPP5pkpssk/kskPP5p4k./kskPP5pk4./.3kPP3pkk4./3.k6lk4./3.k7lk3./..k9lk../.k3wk3.kwwk../k3wk5.kwwk./kwwk6.kwwk./kfk7.k3fk/kk8.5k'],
-  run1: [5, 1, 0, '.kP6dk../kPP5pkk../kPP4pkpk../kPPppdkpsk../kPP3pkssk../kkPP3pkk3./.k6lk3./.k7lkk./k8lwwk/.kww5kwwk/.kwwk4.kfk/.kwwk4.kk./k3fk7./5k7.'],
-  jump: [4, 0, 0, '.kP6dkssk/kPP5pkkssk/kPP4pkp3k./kPPppdkpk4./kPP5pk4./kkPP4pkk3./.k7lkk../k8lwwk./k5l3kwwk./.k3wk..kffk./.k3fk..3k../.5k7.'],
-  fall: [9, 0, 2, '3k14.3k/.kppk..6k..kppk./..kppkkP4dkkppk3./3.3kPP5pkk5./5.kPP6pk5./5.kPP6pk5./5.kkPP4pkk5./6.k6lk6./6.k7lk5./5.k9lk4./6.kwwk.kwwk5./6.kwwk.kwwk5./5.kwwk3.kwwk4./5.kffk3.kffk4./5.4k3.4k4.'],
-  jab0: [7, -1, 0, '3.kP6dk../.3kPP5pk../k10pssk/.10kssk/3.kPP4p3k./3.kPP5pk../3.kkPP3pkk../4.k6lk../3.k7lk../..k9lk./..kwwk..kwwk../.kwwk4.kwwk./kwwk6.kwwk/k3fk4.k3fk/5k4.5k'],
-  jab1: [6, 1, 0, '..kP6d10k./.kPP12pd3sk/.kPP12pd3sk/.kPP5p11k./.kPP5pk11./.kkPP3pkk11./..k5lk12./..k6lk11./.k8lkk9./.kwwk..k4wk8./kwwk5.kwwk8./kwwk6.kwwk7./kffk6.k3fk6./4k6.5k6.'],
-  smash0: [9, -2, 0, '5.kP6dk../6kPP5pkk./k3sppPP4pkssk/k3sppPP4pkssk/6kPP5pkk./5.kkPP3pk3./6.k5lk3./5.k7lk../4.k9lk./3.k3wk..kwwk../..k3wk4.kwwk./.kwwk6.kwwk./k3fk6.k3fk/5k6.5k'],
-  smash1: [6, 1, 0, '..kP6d13k./.kPP14pd4sk/.kPP14pd4sk/.kPP5p10k4sk/.kPP5pk.6d..4k./.kkPP3pkk3.4d7./..k5lk15./..k6lkk13./.k8lwwk11./kwwk..5kwwk10./kwwk6.kwwk10./kwwk7.kwwk9./kffk7.k3fk8./4k7.5k8.'],
-  upper1: [5, -2, 9, '10.3k/9.kssk/9.kssk/9.kddk/9.kppk/9.kppk/9.kppk/9.kppk/..8kppk/.kP6dppk./kPP7pk../kPP6pk3./kPP6pk3./kPP5pk4./kkPP4pk4./.k6lk4./.k7lk3./k9lk../.kwwk.kwwk3./.kwwk.kwwk3./.kwwk..kwwk../k3fk..k4fk/5k..6k'],
-  sweep1: [5, -1, 0, '.kP6dk12./kPP6pk12./kPP5pkpk11./kPP5pkpk11./kkPP3pkkssk10./.k7l12k./k8l10wffk/k8l10wffk/k4w17k/k5fk15./6k16.'],
-  akick1: [5, -1, 0, '.kP6dk10./kPP6pk10./kPP4pkpk10./kPP4pkpk10./kPP3pkssk10./kkPP3p12k./.k7l8wffk/.k7l8wffk/.k6l12k/..k4wk12./..k3wk13./..k3fk13./..5k13.'],
-  stomp1: [4, 0, 0, '.kP6dk../kPP6pkk./kPP6pkpk/kPP6pkpk/kPP6pkpk/kkPP4pkksk/.k6l3k./.k7lwwk/k8lwwk/.kww5kffk/.kwwk..4k./.kwwk7./.kwwk7./.kwwk7./k3fk7./5k7.'],
-  grab1: [5, 0, 0, '.kP6d11k./kPP13pd3sk/kPP4p13k./kPP13pd3sk/kPP3p14k./kkPP3pk13./.k6lk12./.k7lk11./k9lk10./.kwwk.kwwk11./.kwwk..kwwk10./.kwwk3.kwwk9./k3fk3.k4fk7./5k3.6k7.'],
-  hold: [5, -2, 5, '13.5k./12.k5sk/11.k5dk./10.kppkppk../9.kppkppk3./.kP5dppkppk5./kPP9pk6./kPP8pk7./kPP7pk8./kPP7pk8./kkPP4pkk9./.k6lk10./.k7lk9./k9lk8./.kwwk.kwwk9./.kwwk.kwwk9./kwwk3.kwwk8./k3fk..k4fk6./5k..6k6.'],
-  parry: [5, -1, 0, '.kP6dkssk.kssk/kPP6pkkppkPPk./kPP6pk.kppPk../kPP6pk.kPppk../kPP6pkkPPkppk./kPP6pkPPk.kppk/kkPP4pk.kk3.kk./.k6lk9./.k7lk8./k9lk7./.kwwk.kwwk8./.kwwk.kwwk8./.kwwk..kwwk7./k3fk..k4fk5./5k..6k5.'],
-  hurt: [7, -4, 3, '11.kk4./10.kssk3./.5k4.kppk3./kP3dk3.kppk4./kPP3pk.kppk5./.kPP3pkppk6./..kPP5pk6./3.kPP4pk6./4.k6lk5./4.k7lkk3./3.k7lwwk3./4.k3w3k3wk../5.k3wk.k3wk./6.kffk..k3fk/6.3k4.4k'],
-  dodge: [5, 1, 0, '.kP6dk../kPP6pkk./kPP5pkssk/kPP3p3kssk/kkPPpkll3wk/.k6l3wk/k7lkwwk/k3w5kwwk/k3fk3.kffk/5k3.4k'],
-  win: [8, 0, 5, '.kk14.kk./kssk12.kssk/kddk12.kddk/.kppk10.kppk./..kppk8.kppk../3.kpp8dppk3./4.kPP7pk5./4.kPP7pk5./4.kPP6pk6./4.kkPP4pkk6./5.k6lk7./5.k7lk6./4.k9lk5./4.kwwk..kwwk6./3.kwwk4.kwwk5./3.kwwk4.kwwk5./..k3fk4.k3fk4./..5k4.5k4.'],
+  idle0: [4, 0, 0, 'kpp4dpk5./k4pkppk.3k./k4pkppk.kssk/k4pkppkkssk./k4pk3pssk../k4p6k3./.k6lk5./k8lk4./.kwwk.kwwk4./.kwwk..kwwk3./kwwk3.kwwk3./kwwk4.kwwk../k3fk3.k3fk./5k3.5k.'],
+  run0: [6, 1, 0, '3.kpp4dk4./3.k7p3k./..kk6pkSSk./.kss5pkSSk../.kss5p3k3./..kk5pk5./3.k6lk4./..k8lk3./..kwwk..kwwk3./.kwwk4.kwwk../kwwk6.kwwk./kfk7.kwwk./kk8.k3fk/10.5k'],
+  run1: [5, 1, 0, '..kpp4dk5./..k4pkppk4./..k4pkppk.kk./.kk4pkppkkssk/kSSk3pk3pssk./kSSk3p6k../.kk6lk5./.k8lkk3./..kwwk.k4wk../..kwwk.4kwwk./..kwwk4.kffk./..kwwk4.3k../.k3fk9./.5k9.'],
+  jump: [4, 0, 0, 'kpp4dpk.kk./k4pkppkkssk/k4pkppkssk./k4pk3pkk../k4p4k4./.k6lk4./k8lkk../k6l3wk../.kww4kwwk../.kwwk..kffk../.kffk..3k3./.4k8.'],
+  fall: [10, 0, 4, 'kk18.kk./kss9k7.kssk/.kss9k5.kssk./..kPP9k3.kppk../3.kPP3kpp4dpkkppk../4.5k8p3k3./8.k8pk5./8.k8pk5./8.k8lk5./7.k10lk4./8.kwwk..kwwk5./7.kwwk4.kwwk4./7.kwwk4.kwwk4./7.kffk4.kffk4./7.4k4.4k4.'],
+  jab0: [6, -1, 0, '..kpp4dpk3./..k6pkk3./.k5pkssk3./.k5pkssk3./.k4pk3pk3./.k4p5k3./..k6lk4./.k8lk3./.kwwk..kwwk3./kwwk4.kwwk../kwwk4.kwwk../kwwk5.kwwk./k3fk4.k3fk/5k4.5k'],
+  jab1: [5, 1, 0, '..kpp4dpk6./.k9p4k../.k11p3sk/.k11p3sk/.k7p8k/.k8pk6./..k6lk7./.k8lk6./.kwwk..kwwk6./kwwk4.kwwk5./kwwk4.kwwk5./kwwk5.kwwk4./k3fk4.k3fk3./5k4.5k3.'],
+  smash0: [8, -2, 0, '5.kpp4dpk3./.5k7pk3./k4s8pkk../k4s8pkSSk/.5k7pkSSk/5.k7p3k./6.k6lk3./5.k8lk../4.kwwk3.kwwk../3.kwwk5.kwwk./..kwwk6.kwwk./.kwwk7.kwwk./k3fk7.k3fk/5k7.5k'],
+  smash1: [6, 3, 1, '20.3k./4.k9p6kssk./3.k16p3sk/3.k16p3sk/..k8p9k3sk/..k8pk8.3k./..k8lk12./.kwwk6lk12./.kwwk.k4wk12./kwwk4.kwwk12./kwwk5.kwwk11./kwwk5.kwwk11./k3fk4.k3fk10./5k4.5k10.'],
+  upper1: [5, 0, 13, '13.3k./12.k3sk/12.k3sk/12.kppk./13kppk./15pk./15pk./15pk./15pk./15pk./13kppk./13kppk./9.5pk../.kpp4dk3pkk3./.k7p3k5./.k7pk7./.k7pk7./.k7pk7./..k6lk7./.k8lk6./..kwwk.kwwk6./..kwwk..kwwk5./..kwwk..kwwk5./.k3fk3.kwk5./.5k3.kfk5./9.kk6.'],
+  sweep1: [6, -1, 1, '10.pk12./3.k7pk12./..kk7pk12./.kssk6pk12./.kssk6pk12./..3k6l10k3./..k8l9w3k./..k8l9w3fk/.k6w16k/.k5fk16./.7k16.'],
+  akick1: [6, -2, 1, '9.dpk7./..k7pk8./.k10pk6./kSS8pk7./kSSk6pk8./.kk8lkk6./.k4w6lwk5./.k4wk4l3wk4./..3kww5k3wk3./4.kffk4.k3wk../4.3k6.k3wk./14.k3fk/15.kffk/15.3k.'],
+  stomp1: [9, 0, 3, 'kk15.kk/kss13kssk/.kpp11kppk./..kppkkp3dpkkppk../3.3k6p3k4./6.k6pk5./6.k6pk5./6.k6pk5./6.k6lk5./7.k4lk6./7.k4wk6./7.k4wk6./7.k4wk6./7.k4wk6./7.k4fk6./7.kfkkfk6./7.kk..kk6.'],
+  grab1: [5, 1, 0, '.kpp4dpk9./.k8p7k../.k13pssk./.k7p7kssk/.k7p8Ssk/.k7p10k/..k6lk9./.k8lk8./.kwwk..kwwk8./kwwk4.kwwk7./kwwk4.kwwk7./kwwk5.kwwk6./k3fk4.k3fk5./5k4.5k5.'],
+  hold: [11, 0, 14, '4k16.4k/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kssk16.kssk/kppk16.kppk/kppk16.kppk/k17pkk3pk/.9k9p4k./..4k13p4k./6.kpp4d4pk6./7.k8pk7./7.k8pk7./7.k8pk7./8.k6lk8./7.k8lk7./7.kwwk..kwwk7./6.kwwk4.kwwk6./5.k3fk4.k3fk5./5.5k4.5k5.'],
+  parry: [5, -1, 0, '.kpp4dp3k..kk../.k5pkkssk.kssk./.k5pk.kssk3sk./.k5pk..k4sk../.k5pk..k4sk../.k5pk.kssk.kssk/..k6l3k3.3k/.k8lk7./.kwwk..kwwk7./kwwk4.kwwk6./kwwk4.kwwk6./kwwk5.kwwk5./k3fk4.k3fk4./5k4.5k4.'],
+  hurt: [8, -4, 1, '16.kk/.kssk..5k..kssk/..k3pkppddpkkppk./3.kk8pkk3./5.k8pk3./6.k8pk../7.k6pk3./7.k6lk3./6.k8lk../6.kwwk..kwwk../5.kwwk4.kwwk./4.kwwk6.kffk/3.k3fk6.3k./3.5k10.'],
+  dodge: [5, 1, 0, '.kpp4dpk4./.k4pkppk.kk./.k4pkppkkssk/.k4pk3pssk./.k4p6k../.k8lk3./k10lk../kww6k3wk./k3fk3.k4fk/5k3.6k'],
+  cubre: [11, 0, 14, '5.14k5./4.k14sk4./3.kssk10.kssk3./3.kssk10.kssk3./4.kk12.kk4./24./24./24./24./24./24./24./24./24./5.k11pk6./4.k14lk4./..k3fk12lk4./..17k5.'],
 };
 const HEADS = {
   PATY: [6, '..kk.kk.kk4./.kbbkbbkbbk3./.kbBkbBkbBkk../k11hk./k12hk/k5h6shk/k3h9sk/k3h3sekseksk/k3h3sessessk/k3hSsr4srsk/k3hkS3srrsk./.khh8k..'],
@@ -154,7 +165,6 @@ for (const c of CHARS) {
 // Un solo color para todo el cuerpo, salvo el contorno.
 const tint = (c) => new Proxy({}, { get: (o, k) => (k === 'k' ? K : c) });
 const FLASH_PAL = tint(WHITE);
-const GRAY_PAL = tint(0x8a8a9c);
 
 // Pose de cada golpe: [arranque, golpe]. La del golpe se mantiene en el activo y en media recuperación.
 const POSES = { jab: ['jab0', 'jab1'], smash: ['smash0', 'smash1'], upper: ['jab0', 'upper1'], sweep: ['dodge', 'sweep1'], akick: ['jump', 'akick1'], stomp: ['fall', 'stomp1'], grab: ['dodge', 'grab1'] };
@@ -228,11 +238,11 @@ const STAGES = (() => {
     .map((h) => parseInt(h, 16));
   const mix = (a, b, k) => [16, 8, 0].reduce((r, s) => r | ((((a >> s) & 255) * (1 - k) + ((b >> s) & 255) * k) << s), 0);
   // Hora del día como cambio de paleta: cielo propio y un tinte sobre todo lo demás.
-  const PALS = [0, 1, 2].map((i) => P.slice(i * 6, i * 6 + 6).concat(P.slice(18).map((c) => mix(c, [0, 0x8a5070, 0x101830][i], [0, 0.25, 0.5][i]))));
+  const PALS = [0, 1, 2].map((i) => P.slice(i * 6, i * 6 + 6).concat(P.slice(18).map((c) => mix(c, [0, 0x8a5070, 0x101830][i], [0, 0.2, 0.35][i]))));
 
   // Primitivas de dibujo. Un color menor que la paleta es un índice; si no, va tal cual.
   const R = (x, y, w, h, c) => G.fillStyle(C[c] || c).fillRect(x | 0, y | 0, w | 0, h | 0);
-  const T = (a, b, c, d, e, f, k) => G.fillStyle(C[k]).fillTriangle(a, b, c, d, e, f);
+  const T = (a, b, c, d, e, f, k) => G.fillStyle(C[k] || k).fillTriangle(a, b, c, d, e, f);
   const line = (a, b, c, d) => G.lineStyle(1, C[29]).lineBetween(a, b, c, d);
   const rnd = (n) => ((S = (S * 69069 + 1) >>> 0) >>> 16) % n;
   const wrap = (v, m) => ((v % m) + m) % m;
@@ -376,21 +386,25 @@ const STAGES = (() => {
   const draw = (e) => (e[0].call ? e[0](...e.slice(1)) : rects(...e));
   const mir = (l) => l.flatMap(([a, b, ...r]) => (a + b - W ? [[a, b, ...r], [W - b, W - a, ...r]] : [[a, b, ...r]]));
 
-  // Mapas: nombre, piso, medio ancho del piso, plataformas [x1, x2, y, 1 frágil | 2 caliente]
+  // Mapas: nombre, piso, medio ancho del piso, plataformas [x1, x2, y, 1 frágil | 2 caliente | 4 mesa: abajo no cae nada]
   // de la mitad izquierda, puertas, objetos, objeto pesado, primera capa viva y capas.
   return [
     [
-      'EL DEPTO', 200, 120, [[130, 190, 168], [44, 80, 132, 1]], [[52, 72, 40]], 'tetera pan macetero pan', 'tele', 9,
+      'EL DEPTO', 200, 120, [[130, 190, 168, 4], [44, 80, 132, 1]], [[52, 72, 40]], 'tetera pan macetero pan', 'tele', 9,
       [
-        [sky, 250, 30],
+        [sky, 306, 50],
         [hills, 150, 3, 6, 50, 1],
         [city, 215, 13, 40],
         [36, 62, 248, 138, 11, 32, 56, 256, 6, 26, 36, 194, 248, 6, 13, 36, 200, 248, 8, 26, 136, 76, 48, 36, 14, 138, 78, 44, 32, 1],
         [T, 138, 110, 156, 92, 176, 110, 6],
+        // Por la ventana, la cordillera con nieve.
+        [T, 149, 99, 156, 92, 163, 99, 7],
         [rep, 15, 16, 0, 44, 62, 4, 132, 12],
         [159, 78, 2, 32, 14, 138, 93, 44, 2, 14, 104, 82, 16, 20, 30, 104, 82, 16, 4, 21, 205, 184, 18, 16, 13, 206, 168, 16, 16, 29, 130, 168, 60, 6, 30],
         [rep, 8, 8, 0, 130, 168, 4, 6, 21],
         [sym, 49, 160, 26, 40, 13, 52, 163, 20, 37, 14, 134, 174, 3, 26, 13],
+        // Mochila de emergencia con linterna, al lado de la puerta.
+        [40, 189, 7, 11, 0x0c5930, 41, 186, 5, 3, 29, 42, 192, 3, 4, 0x1d7a45],
         [noise, 208, 170, 12, 12],
         [lamp, 160, 62, 16],
       ],
@@ -403,6 +417,8 @@ const STAGES = (() => {
         [walk, 162, 0, 150, 0, 21],
         [walk, 163, 0, 170, 0, 22],
         [walk, 162, 0, 278, 0, 24],
+        // Limonero del patio, asomado sobre el muro.
+        [21, 132, 4, 18, 13, 10, 116, 26, 20, 16, 14, 110, 18, 6, 16, 15, 121, 2, 2, 23, 27, 125, 2, 2, 23, 20, 129, 2, 2, 23, 31, 116, 2, 2, 23],
         [0, 150, 320, 55, 11],
         [rep, 6, 0, 9, 0, 158, 320, 1, 12],
         [rep, 5, 64, 0, 28, 150, 5, 55, 12],
@@ -417,11 +433,13 @@ const STAGES = (() => {
       ],
     ],
     [
-      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162]], [[63, 81, 28]], 'macetero balde pelota teja', 'parabolica', 3,
+      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162, 4]], [[63, 81, 28]], 'macetero balde pelota teja', 'parabolica', 3,
       [
         [sky, 250, 84],
         [hills, 175, 9, 8, 50],
         [city, 200, 29, 60],
+        // La torre alta de vidrio de Santiago, sin nombre.
+        [200, 80, 13, 120, 22, 202, 82, 2, 118, 20, 202, 72, 9, 8, 22, 204, 64, 5, 8, 22, 206, 52, 1, 12, 29],
         [birds, 40, 3, 25, 26],
         [0, 222, 320, 18, 32],
         [walk, 230, 18, 0, 3, 30],
@@ -431,12 +449,14 @@ const STAGES = (() => {
         [rep, 3, 0, 12, 140, 162, 40, 2, 26],
         [rep, 8, 0, 8, 154, 78, 11, 1, 27],
         [sym, 56, 162, 32, 38, 11, 54, 160, 36, 3, 26, 63, 172, 18, 28, 14],
+        // Señal verde de salida sobre cada puerta: se ve igual de noche.
+        [sym, 66, 165, 12, 7, 0xf6f1e7, 67, 166, 10, 5, 0x0c5930, 69, 167, 2, 3, 0xf6f1e7, 72, 168, 3, 1, 0xf6f1e7, 74, 167, 1, 3, 0xf6f1e7],
         [ropa, 100, 148, 3, 11, 0],
         [blink, 158, 66],
       ],
     ],
     [
-      'LA POBLA', 205, 128, [[136, 184, 160], [92, 128, 150]], [[146, 174, 44]], 'pelota teja macetero pan', 'gas', 2,
+      'LA POBLA', 205, 128, [[136, 184, 160, 4], [92, 128, 150]], [[136, 184, 42]], 'pelota teja macetero pan', 'gas', 2,
       [
         [sky, 60, 84],
         [hills, 150, 3, 6, 55, 1],
@@ -447,28 +467,42 @@ const STAGES = (() => {
         [walk, 192, -12, 100, 1, 13],
         [walk, 189, -28, 250, 0, 25],
         [poles, 150, 205, 20, 300],
-        [134, 158, 52, 3, 27, 140, 166, 40, 20, 26, 152, 170, 16, 8, 5, 144, 190, 32, 2, 13, 0, 205, 320, 35, 32, 32, 205, 256, 8, 26],
+        // Volantín enredado en el cable, con su cola.
+        [T, 257, 147, 262, 140, 267, 147, 0xe53935],
+        [T, 257, 147, 262, 154, 267, 147, 0xfdd835],
+        [262, 154, 1, 9, 29, 263, 162, 1, 4, 29],
+        [134, 158, 52, 3, 27, 140, 166, 40, 20, 26, 152, 170, 16, 8, 5, 144, 196, 32, 2, 13, 0, 205, 320, 35, 32, 32, 205, 256, 8, 26],
         [sym, 138, 161, 2, 44, 27, 90, 150, 38, 10, 16, 96, 160, 26, 4, 16, 106, 164, 4, 41, 13],
       ],
     ],
     [
-      'LA PLAYA', 200, 130, [[136, 184, 150], [90, 124, 164]], [[148, 172, 20]], 'pelota balde chori pelota', 'sandia', 4,
+      'LA PLAYA', 200, 130, [[136, 184, 150, 4], [90, 124, 164, 4]], [[136, 184, 47]], 'pelota balde chori pelota', 'sandia', 4,
       [
         [sky, 250, 84],
         [hills, 140, 7, 8, 40],
+        // Cerro de Valparaíso: casas apiladas y el ascensor que sube en diagonal.
+        [T, -30, 140, 40, 96, 120, 140, 13],
+        [houses, 4, 5, 15, 130, 3, 8],
+        [houses, 14, 4, 13, 120, 5, 8],
+        [houses, 26, 2, 13, 110, 8, 7],
+        [line, 70, 138, 96, 112],
+        [84, 120, 6, 6, 21],
         [houses, 0, 20, 16, 140, 9, 10],
         [0, 140, 320, 100, 19, 0, 140, 320, 1, 20],
         [birds, 36, 4, 22, 30],
         [walk, 160, 60, 0, 4, 21],
         [waves, 150, 6, 30],
         [30, 200, 260, 40, 17, 30, 210, 260, 30, 18, 134, 150, 52, 5, 30, 158, 124, 2, 26, 27, 160, 124, 8, 5, 21, 146, 180, 28, 20, 21, 154, 186, 12, 14, 14],
+        // Vía de evacuación de tsunami: señal verde con flecha hacia el cerro.
+        [264, 178, 2, 22, 29, 258, 166, 14, 12, 0xf6f1e7, 259, 167, 12, 10, 0x0c5930, 263, 171, 6, 2, 0xf6f1e7],
+        [T, 263, 168, 263, 176, 259, 172, 0xf6f1e7],
         [sym, 140, 155, 3, 45, 30, 90, 164, 34, 2, 21, 93, 166, 28, 2, 21, 97, 168, 20, 2, 21, 100, 164, 3, 6, 30, 107, 164, 3, 6, 30, 114, 164, 3, 6, 30, 106, 170, 2, 30, 27],
       ],
     ],
   ].map(([n, floor, hw, pl, dr, drops, heavy, a, L]) => ({
     n,
     floor,
-    plats: [[160 - hw, 160 + hw, floor, 3], ...mir(pl)].map(([x1, x2, y, f]) => ({ x1, x2, y, solid: f > 2, brk: f == 1, hot: f == 2 })),
+    plats: [[160 - hw, 160 + hw, floor, 3], ...mir(pl)].map(([x1, x2, y, f]) => ({ x1, x2, y, solid: f == 3, brk: f == 1, hot: f == 2, mesa: f > 3 })),
     doors: mir(dr),
     drops: drops.split(' '),
     heavy,
@@ -514,13 +548,14 @@ const GRADOS = [
 ];
 
 // Golpes: arranque (s), activo (a), total (e), caja [x0,x1,y0,y1] desde los pies, daño, empuje base y crecimiento, ángulo.
+// Estela (w): color, centro x e y desde los pies, radio y ángulos del arco mirando a la derecha.
 const MOVES = {
-  jab: { s: 50, a: 60, e: 180, box: [3, 15, -15, -8], d: 6, b: 40, gr: 1.6, an: 0.35 },
-  smash: { s: 220, a: 80, e: 440, box: [3, 18, -16, -8], d: 13, b: 110, gr: 3.1, an: 0.6 },
-  upper: { s: 70, a: 80, e: 320, box: [-3, 12, -30, 4], d: 9, b: 85, gr: 2.6, an: 1.35 },
-  sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 1.15 },
-  akick: { s: 60, a: 160, e: 320, box: [1, 14, -12, -2], d: 8, b: 70, gr: 2.5, an: 0.45, air: true },
-  stomp: { s: 120, a: 120, e: 380, box: [-6, 6, -4, 7], d: 10, b: 60, gr: 2.6, an: -1.2, air: true },
+  jab: { s: 50, a: 60, e: 180, box: [3, 15, -15, -8], d: 6, b: 40, gr: 1.6, an: 0.35, w: [WHITE, 2, -12, 12, -0.4, 0.4] },
+  smash: { s: 220, a: 80, e: 440, box: [3, 18, -16, -8], d: 13, b: 110, gr: 3.1, an: 0.6, w: [YEL, 0, -12, 18, -1, 0.6] },
+  upper: { s: 70, a: 80, e: 320, box: [2, 12, -27, 6], d: 9, b: 85, gr: 2.6, an: 1.35, w: [WHITE, 0, -16, 13, -1.7, 0.5] },
+  sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 0.2, w: [0xd6bd86, 2, 6, 16, -2.6, -0.4] },
+  akick: { s: 60, a: 160, e: 320, box: [3, 13, -9, 0], d: 8, b: 70, gr: 2.5, an: 0.45, air: true, w: [WHITE, 0, -10, 14, -1.2, 0.7] },
+  stomp: { s: 120, a: 120, e: 380, box: [-6, 6, -4, 7], d: 10, b: 60, gr: 2.6, an: -1.2, air: true, w: [WHITE, 0, -6, 10, 0.4, 2.7] },
   grab: { s: 120, a: 80, e: 400, box: [1, 12, -16, -4] },
 };
 
@@ -681,7 +716,7 @@ function makeFighter(s, i, cpu, ci) {
     run: 0,
     tap: { d: 0, t: -1e9 },
     susto: 0,
-    lives: 2,
+    vt: 1,
     act: null,
     stun: 0,
     daze: 0,
@@ -770,18 +805,18 @@ function simulate(s, dt) {
   if (s.help > 0) s.help -= dt * 1000;
   if (s.mode === 'end') return;
 
-  // Se revisan los dos antes de decidir: si caen en el mismo cuadro, gana el con menos susto.
-  const outs = s.f.filter((f) => checkOut(s, f));
+  // Pierde el que cae sin vida (en muerte súbita, el que cae). Si caen los dos en el mismo cuadro, gana el con menos susto.
   const [a, b] = s.f;
-  if (outs.length && (s.sudden || a.lives <= 0 || b.lives <= 0)) {
-    if (a.lives !== b.lives) endMatch(s, a.lives > b.lives ? a : b);
-    else endMatch(s, outs.length === 2 ? (a.susto <= b.susto ? a : b) : s.f[1 - outs[0].i]);
+  const ko = s.f.filter((f) => checkOut(s, f) && (s.sudden || f.susto >= MAX_SUSTO));
+  if (ko.length) {
+    endMatch(s, ko.length > 1 ? (a.susto <= b.susto ? a : b) : s.f[1 - ko[0].i]);
     return;
   }
 
+  // Al acabarse el tiempo gana el que tiene más vida.
   if (!s.sudden && s.mt >= MATCH_MS) {
-    if (a.lives !== b.lives) {
-      endMatch(s, a.lives > b.lives ? a : b);
+    if (Math.round(life(a)) !== Math.round(life(b))) {
+      endMatch(s, life(a) > life(b) ? a : b);
     } else {
       s.sudden = true;
       say(s, '¡MUERTE SÚBITA!', RED);
@@ -846,8 +881,9 @@ function stepFighter(s, f, o, inp, dt) {
       sfx(s, 'parry');
       return;
     }
-    f.x = g.x + g.face * 11;
-    f.y = g.y - 10;
+    // En alto, sobre la cabeza del que agarra.
+    f.x = g.x;
+    f.y = g.y - 24;
     f.vx = f.vy = 0;
     return;
   }
@@ -924,16 +960,18 @@ function stepFighter(s, f, o, inp, dt) {
   if (f.vy >= 0) f.jumping = false;
   if (!f.ground && f.stun > 0) f.vx *= 1 - 0.9 * dt;
 
-  // Desde el grado 6 el piso arrastra hacia un lado, pero no a un hoyo; bajo el marco de la puerta no arrastra durante 2 s, que se recargan afuera.
+  // Desde el grado 6 el piso arrastra hacia un lado, pero no a un hoyo ni fuera del piso, y nunca en un lugar seguro.
+  // Ahí la calma sube durante 2 s, que se recargan afuera.
   const g = GRADOS[Math.max(0, s.phase)];
-  const inDoor = f.ground && f.plat.solid && s.st.doors.some((d) => f.x > d[0] && f.x < d[1]);
-  if (inDoor && g.tilt) {
+  const safe = sheltered(s, f);
+  if (safe && g.tilt) {
     f.refugio = Math.min(2000, f.refugio + ms);
     if (f.refugio < 2000) gainCalma(s, f, 12 * dt);
   } else {
     f.refugio = Math.max(0, f.refugio - ms);
   }
-  if (g.tilt && f.ground && !(inDoor && f.refugio < 2000) && !inHole(f.plat, f.x + s.lat.dir * 8)) {
+  const nx = f.x + s.lat.dir * 8;
+  if (g.tilt && f.ground && !safe && nx > f.plat.x1 && nx < f.plat.x2 && !inHole(f.plat, nx)) {
     f.x += s.lat.dir * s.lat.k * 40 * dt;
     // Polvo que queda atrás en los pies: dice hacia dónde arrastra el piso.
     if (Math.random() < s.lat.k / 3) s.parts.push({ x: f.x, y: f.y - 2, vx: -s.lat.dir * 20, vy: -12, l: 0.4, c: 0xd6bd86, z: 2, ng: 1 });
@@ -973,6 +1011,23 @@ function stepFighter(s, f, o, inp, dt) {
     }
   }
   if (wasGround && !f.ground && f.vy >= 0 && !f.jumping) f.coyote = 80;
+
+  // La grieta no se traga a nadie con vida: lo escupe hacia un lado y lo asusta. Sin vida, se lo traga.
+  const fl = s.plats[0];
+  const h = f.y > fl.y + 2 && fl.holes && fl.holes.find((h) => f.x > h[0] - 12 && f.x < h[1] + 12);
+  // Adentro, las paredes de la grieta no dejan salir de lado.
+  if (h) f.x = Phaser.Math.Clamp(f.x, h[0] + 2, h[1] - 2);
+  if (h && f.y > fl.y + 12 && f.susto < MAX_SUSTO) {
+    f.susto += FALL_SUSTO / 2;
+    f.y = fl.y + 12;
+    f.vy = -360;
+    f.vx = f.x < (h[0] + h[1]) / 2 ? -100 : 100;
+    f.stun = 250;
+    f.jumps = 1;
+    puff(s, f.x, fl.y, 10, 0x8a8a9c);
+    sfx(s, 'thud');
+    s.kick = 2;
+  }
 
   // La parrilla quema.
   if (f.ground && f.plat.hot) {
@@ -1022,7 +1077,7 @@ function readButtons(s, f, o, inp) {
     else if (f.ground) k = inp.d ? 'sweep' : inp.l || inp.r ? 'smash' : 'jab';
     else k = inp.d ? 'stomp' : 'akick';
     f.act = { k, t: 0, ch: 0, hold: true };
-    sfx(s, 'whiff');
+    sfx(s, 'whiff', Object.keys(MOVES).indexOf(k));
   } else if (inp.b2) {
     const ob = nearObj(s, f);
     if (ob) {
@@ -1050,6 +1105,15 @@ function resolveAction(s, f, o) {
         a.t = 100;
       } else if (!f.inp.h1) {
         a.hold = false;
+      }
+    }
+    // Al soltar, el fuerte se lanza hacia adelante y el gancho despega del piso.
+    if (!a.go && a.t >= m.s) {
+      a.go = 1;
+      if (a.k === 'smash') f.vx = f.face * 230;
+      if (a.k === 'upper' && f.ground) {
+        f.vy = -150;
+        f.ground = false;
       }
     }
     const live = a.t >= m.s && a.t < m.s + m.a && touches(f, o, m.box) && o.inv <= 0 && !o.grabbedBy;
@@ -1127,14 +1191,16 @@ function parried(s, f, attacker) {
 
 function hit(s, t, dir, dmg, base, growth, ang, by) {
   const chain = t.stun > 0;
-  t.susto += dmg;
+  t.susto += dmg * HIT_SUSTO;
   gainCalma(s, t, dmg * 0.8);
-  const kb = (base + t.susto * growth) / t.c.wt;
+  // Sin vida, cualquier golpe lo saca volando.
+  const kb = t.susto >= MAX_SUSTO ? 700 : (base + t.susto * growth) / t.c.wt;
   t.vx = dir * kb * Math.cos(ang);
   t.vy = -kb * Math.sin(ang) - (ang < 0 ? 0 : 40);
   t.stun = Math.min(700, 120 + t.susto * 1.4);
   const v = s.f[1 - t.i];
   if (v.grabbedBy === t) v.grabbedBy = null;
+  if (t.susto > v.susto + 40) t.behind = true;
   t.act = null;
   t.ground = false;
   t.spiked = false;
@@ -1150,7 +1216,7 @@ function hit(s, t, dir, dmg, base, growth, ang, by) {
       by.sty += 40 * by.combo;
     }
   }
-  const big = t.susto > 90;
+  const big = t.susto > 70;
   if (big) flash(s, 0.3);
   s.fx.push({ x: t.x - dir * 4, y: t.y - 14, r: big || kb > 400 ? 14 : 9, l: 0.16, d: dir });
   puff(s, t.x, t.y - 12, big ? 10 : 6, big ? ORANGE : YEL);
@@ -1189,8 +1255,7 @@ function flash(s, a) {
 }
 
 function gainCalma(s, f, n) {
-  const o = s.f[1 - f.i];
-  const losing = f.lives < o.lives || (f.lives === o.lives && f.susto > o.susto + 30);
+  const losing = f.susto > s.f[1 - f.i].susto + 30;
   f.calma = Math.min(100, f.calma + n * (losing ? 1.5 : 1));
 }
 
@@ -1199,14 +1264,14 @@ function checkOut(s, f) {
   if (f.out > 0) return false;
   if (f.x > -30 && f.x < W + 30 && f.y < H + 40 && f.y > -120) return false;
   const o = s.f[1 - f.i];
-  f.lives--;
+  f.susto += FALL_SUSTO;
   f.out = 900;
   f.act = null;
   f.grabbedBy = null;
   dropHold(f);
   if (o.grabbedBy === f) o.grabbedBy = null;
   o.base += 1000;
-  if (f.lives < o.lives) f.behind = true;
+  if (f.susto > o.susto + 40) f.behind = true;
   const ex = Phaser.Math.Clamp(f.x, 4, W - 4);
   const ey = Phaser.Math.Clamp(f.y, 4, H - 4);
   for (let k = 0; k < 3; k++) puff(s, ex, ey, 12, [WHITE, YEL, PCOL[f.i]][k]);
@@ -1227,7 +1292,6 @@ function respawn(s, f) {
   f.y = 30;
   f.vx = 0;
   f.vy = 0;
-  f.susto = 0;
   f.stun = 0;
   f.daze = 0;
   f.act = null;
@@ -1239,6 +1303,11 @@ function respawn(s, f) {
 
 function inHole(p, x) {
   return p.holes && p.holes.some((h) => x > h[0] && x < h[1]);
+}
+
+// Bajo una mesa o bajo el marco de la puerta el temblor no hace nada: ni arrastra, ni levanta, ni le cae algo encima.
+function sheltered(s, f) {
+  return f.ground && f.plat.solid && (s.st.doors.some((d) => f.x > d[0] && f.x < d[1]) || s.plats.some((p) => p.mesa && f.x > p.x1 && f.x < p.x2));
 }
 
 // Lo primero que hay bajo un punto: ahí van las sombras.
@@ -1319,7 +1388,7 @@ function updateQuake(s, dt) {
       s.joltT = 1950 - g.g * 130;
       s.kick = g.g / 4;
       for (const f of s.f) {
-        if (f.ground && f.out <= 0 && !f.grabbedBy && !f.act) {
+        if (f.ground && f.out <= 0 && !f.grabbedBy && !f.act && !sheltered(s, f)) {
           f.vy = -30 - g.g * 5;
           f.ground = false;
         }
@@ -1416,7 +1485,7 @@ function stepObjects(s, dt) {
             }
           }
           break;
-        } else if (ob.vy > 150) {
+        } else if (ob.vy > 150 && !sheltered(s, f)) {
           hit(s, f, ob.x < f.x ? 1 : -1, 4, 50, 1.2, 1.1, null);
           f.stun = Math.min(f.stun, 150);
           f.lastObj = { k: ob.k, t: s.mt };
@@ -1485,6 +1554,13 @@ function cpuIntent(s, f, o, dt) {
     out.r = w.r;
     out.uh = true;
     if (f.vy > 0 && f.jumps > 0) out.up = true;
+    return out;
+  }
+  // Salta las grietas en vez de caer en ellas.
+  const nx = f.x + f.vx * 0.12;
+  if (f.ground && Math.abs(f.vx) > 20 && fl.holes && fl.holes.some((h) => nx > h[0] - 6 && nx < h[1] + 6)) {
+    out.up = out.uh = w.uh = true;
+    ai.t = 300;
     return out;
   }
   if (o.act && MOVES[o.act.k] && o.act.t < 50 && adx < 24 && Math.random() < 0.1) {
@@ -1726,7 +1802,8 @@ function render(s, t) {
   s.world.y = Math.round(H / 2 + (Math.random() - 0.5) * amp * 2);
 
   s.st.anim(g, t, s);
-  g.fillStyle(K, 0.38).fillRect(0, 0, W, H);
+  // El velo separa el fondo de lo que se pisa; de noche es más suave porque la hora ya oscurece.
+  g.fillStyle(K, [0.38, 0.3, 0.2][s.tod]).fillRect(0, 0, W, H);
   // Bordes claros en todo lo que se pisa.
   for (const p of s.plats) {
     if (p.brk) continue;
@@ -1735,7 +1812,12 @@ function render(s, t) {
   }
   const fl = s.plats[0];
   const c = (fl.x1 + fl.x2) / 2;
-  if (s.phase >= 3) for (const d of s.st.doors) g.lineStyle(2, YEL, 0.6 + 0.4 * Math.sin(t / 120)).strokeRect(d[0], fl.y - d[2], d[1] - d[0], d[2]);
+  // Desde el grado 5, cuando empieza a caer de todo, los lugares seguros se marcan en verde.
+  if (s.phase >= 2) {
+    g.lineStyle(2, 0x3fd07a, 0.6 + 0.4 * Math.sin(t / 120));
+    for (const d of s.st.doors) g.strokeRect(d[0], fl.y - d[2], d[1] - d[0], d[2]);
+    for (const p of s.plats) if (p.mesa) g.strokeRect(p.x1, p.y + 3, p.x2 - p.x1, fl.y - p.y - 3);
+  }
   if (s.phase >= 3) {
     for (const h of fl.holes || [[c - 44, c - 30], [c + 30, c + 44]]) {
       if (fl.holes) {
@@ -1796,23 +1878,32 @@ function render(s, t) {
     for (let k = 1; k < 9; k++) g.lineTo(s.ko.x + ((W / 2 - s.ko.x) * k) / 8, s.ko.y + ((H / 2 - s.ko.y) * k) / 8 + (k & 1 ? -10 : 10));
     g.strokePath();
   }
-  // Grado 7 y 8: la luz baja de golpe, una vez por segundo como máximo.
-  if (ph.g >= 7 && s.mode !== 'end' && Math.sin(t / 160) > 0.97) g.fillStyle(K, 0.3).fillRect(0, 0, W, H);
+  // Grado 7 y 8: la luz baja de golpe, una vez por segundo como máximo, salvo de noche, que ya está oscuro.
+  if (ph.g >= 7 && s.tod < 2 && s.mode !== 'end' && Math.sin(t / 160) > 0.97) g.fillStyle(K, 0.3).fillRect(0, 0, W, H);
 
   drawHud(s, t);
 }
 
 function drawFighter(s, g, f, t) {
   if (f.out > 0 || (f.blink > 0 && ((t / 70) | 0) % 2)) return;
+  // Agarrado: acostado sobre las manos del otro y pataleando.
+  if (f.grabbedBy) {
+    g.save().translateCanvas(Math.round(f.x) + ((t / 70) & 1), Math.round(f.y) - 8).rotateCanvas((f.grabbedBy.face * Math.PI) / 2);
+    drawChar(g, f.c, 'fall', 0, 13, f.face, f.c.pal, 1);
+    g.restore();
+    return;
+  }
   const a = f.act ? f.act.k : '';
   const m = MOVES[a];
   let fr = 'idle0';
   if (f.stun > 0 || f.grabbedBy || f.daze > 0) fr = 'hurt';
   else if (f.land > 0) fr = 'dodge';
+  // En un lugar seguro, con el temblor fuerte y sin hacer nada: agachado y cubriéndose la cabeza.
+  else if (!f.act && s.phase >= 2 && Math.abs(f.vx) < 20 && sheltered(s, f)) fr = 'cubre';
   else if (m) fr = POSES[a][f.act.t >= m.s && f.act.t < (m.s + m.a + m.e) / 2 ? 1 : 0];
   else if (a === 'parry') fr = 'parry';
   else if (a === 'throwing') fr = 'jab1';
-  else if (a === 'remezon') fr = 'win';
+  else if (a === 'remezon') fr = 'stomp1';
   else if (a === 'hold' || f.hold) fr = 'hold';
   else if (!f.ground) fr = f.vy < 0 ? 'jump' : 'fall';
   else if (Math.abs(f.vx) > 20) fr = ((t / (f.run ? 70 : 110)) | 0) % 2 ? 'run1' : 'run0';
@@ -1822,8 +1913,10 @@ function drawFighter(s, g, f, t) {
   if (f.stun > 0 && Math.hypot(f.vx, f.vy) > 260) s.parts.push({ x: f.x, y: f.y - 12, vx: 0, vy: 0, l: 0.3, c: 0xc8c8d8, z: 3, ng: true });
   // Óvalo del color del jugador en lo que tiene debajo: se sabe quién es quién y dónde va a caer.
   const sy = below(s, f.x, f.y);
+  // De noche se cortó la luz: cada uno anda con su linterna.
+  if (s.tod > 1) g.fillStyle(0xffe8a0, 0.06).fillCircle(cx, feet - 12, 26).fillCircle(cx, feet - 12, 15);
   if (sy < H) g.fillStyle(PCOL[f.i], 0.7).fillEllipse(cx, sy, Math.max(6, 16 - (sy - f.y) / 8), 3);
-  const ht = drawChar(g, f.c, fr, cx, feet, f.face, f.flashT > 0 ? FLASH_PAL : f.c.pal, 1);
+  const ht = drawChar(g, f.c, fr, cx, feet, f.face, f.flashT > 0 && (t / 33) & 1 ? FLASH_PAL : f.c.pal, 1);
   // Golpe cargado: chispas alrededor mientras se mantiene el botón.
   if (a === 'smash' && f.act.hold && f.act.ch > 0) g.lineStyle(2, ((t / 80) | 0) % 2 ? YEL : WHITE).strokeCircle(cx, feet - 14, 18 - f.act.ch / 50);
   if (f.daze > 0) {
@@ -1833,9 +1926,14 @@ function drawFighter(s, g, f, t) {
     }
   }
   // Con mucho susto, transpira.
-  if (f.susto >= 100 && f.flashT <= 0) g.fillStyle(0x7fd0ea).fillRect(cx - f.face * 7, ht + 3 + (((t / 120) | 0) % 3), 1, 2);
+  if (f.susto >= 70 && f.flashT <= 0) g.fillStyle(0x7fd0ea).fillRect(cx - f.face * 7, ht + 3 + (((t / 120) | 0) % 3), 1, 2);
   if (a === 'remezon') g.lineStyle(2, RED, 0.9).strokeCircle(cx, feet - 13, 6 + f.act.t / 4);
-  if (a === 'upper' && f.act.t >= m.s && f.act.t < m.s + m.a) g.lineStyle(2, WHITE, 0.8).beginPath().arc(cx, feet - 16, 13, f.face > 0 ? 0.5 : 2.64, f.face > 0 ? -1.7 : 4.84, f.face > 0).strokePath();
+  // Cada golpe deja su estela: corta al frente, ancha y amarilla la del fuerte, hacia arriba el gancho, a ras de piso la barrida.
+  const sw = m && m.w && (f.act.t - m.s) / (m.a + 100);
+  if (sw >= 0 && sw < 1) {
+    const [c, ox, oy, r, lo, hi] = m.w;
+    g.lineStyle(a === 'smash' ? 3 : 2, c, 1 - sw).beginPath().arc(cx + ox * f.face, feet + oy, r, f.face > 0 ? lo : Math.PI - lo, f.face > 0 ? hi : Math.PI - hi, f.face < 0).strokePath();
+  }
   if (a === 'parry' && f.act.t < 160) g.lineStyle(2, 0x9fe8ff, 1 - f.act.t / 200).strokeCircle(cx - f.face * 3, feet - 14, 16);
   // Marca del jugador sobre la cabeza.
   g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, ht - 7, cx + 3, ht - 7, cx, ht - 4);
@@ -1925,29 +2023,28 @@ function drawHud(s, t) {
     const x = i ? W - 6 : 6;
     const al = i ? 1 : 0;
     text(g, (f.cpu ? 'CPU ' : 'P' + (i + 1) + ' ') + f.c.n, x, 4, 1, PCOL[i], al);
-    // Mientras está fuera de la pantalla el susto ya se muestra en cero.
-    const su = f.out > 0 ? 0 : Math.round(f.susto);
-    const col = su >= 100 ? RED : su >= 50 ? YEL : WHITE;
-    text(g, String(su), x, 12, 3, col, al);
-    text(g, 'SUSTO', x, 31, 1, col, al);
-    for (let k = 0; k < 2; k++) {
-      const hx = i ? W - 16 - k * 20 : 16 + k * 20;
-      spr(g, f.c.head[1], hx, 42, i ? -1 : 1, k < f.lives ? f.c.pal : GRAY_PAL, f.c.head[0]);
-      if (k >= f.lives) g.lineStyle(2, RED).lineBetween(hx - 5, 43, hx + 5, 53).lineBetween(hx + 5, 43, hx - 5, 53);
-    }
+    // Vida: se vacía hacia afuera, lo recién perdido queda un rato en rojo y con poca vida parpadea.
+    const v = life(f) / MAX_SUSTO;
+    f.vt = approach(f.vt, v, 0.006);
+    const bx = i ? W - 120 : 6;
+    g.fillStyle(WHITE).fillRect(bx, 12, 114, 9);
+    g.fillStyle(K).fillRect(bx + 1, 13, 112, 7);
+    g.fillStyle(RED).fillRect(i ? bx + 113 - 112 * f.vt : bx + 1, 13, 112 * f.vt, 7);
+    g.fillStyle(v < 0.3 && ((t / 150) | 0) % 2 ? WHITE : PCOL[i]).fillRect(i ? bx + 113 - 112 * v : bx + 1, 13, 112 * v, 7);
+    spr(g, f.c.head[1], i ? W - 14 : 14, 24, i ? -1 : 1, f.c.pal, f.c.head[0]);
     const full = f.calma >= 100;
-    const bx = i ? W - 52 : 6;
-    g.fillStyle(WHITE).fillRect(bx, 57, 46, 5);
-    g.fillStyle(K).fillRect(bx + 1, 58, 44, 3);
-    g.fillStyle(full ? (((t / 100) | 0) % 2 ? YEL : WHITE) : PCOL[i]).fillRect(bx + 1, 58, 0.44 * f.calma, 3);
-    text(g, full ? '1+2!' : 'CALMA', x, 65, full ? 2 : 1, full ? YEL : WHITE, al);
-    if (f.comboShow > 0) text(g, f.combo + ' GOLPES', x, 78, 1, YEL, al);
+    const cx = i ? W - 72 : 26;
+    g.fillStyle(WHITE).fillRect(cx, 26, 46, 5);
+    g.fillStyle(K).fillRect(cx + 1, 27, 44, 3);
+    g.fillStyle(full ? (((t / 100) | 0) % 2 ? YEL : WHITE) : PCOL[i]).fillRect(cx + 1, 27, 0.44 * f.calma, 3);
+    text(g, full ? '1+2!' : 'CALMA', i ? W - 26 : 26, 33, full ? 2 : 1, full ? YEL : WHITE, al);
+    if (f.comboShow > 0) text(g, f.combo + ' GOLPES', x, 46, 1, YEL, al);
   });
 
   s.msgs = s.msgs.filter((m) => t - m.t0 < m.ms);
   s.msgs.forEach((m, k) => text(g, m.str, W / 2, 104 + k * 16, 2, m.col));
 
-  if (s.help > 0 && s.mode === 'play') text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · DOBLE TOQUE CORRE', W / 2, 228, 1, WHITE);
+  if (s.help > 0 && s.mode === 'play') text(g, MOVE_HELP + ' · 2 AGARRA', W / 2, 228, 1, WHITE);
 
   if (s.mode === 'demo') drawTitle(s, g, t);
 }
@@ -1956,7 +2053,7 @@ function drawHud(s, t) {
 function drawControls(g, t) {
   g.fillStyle(K).fillRect(0, 0, W, 214);
   text(g, 'CÓMO SE JUEGA', W / 2, 8, 2, YEL);
-  text(g, 'SÁCALO DE LA PANTALLA · 2 VIDAS · MÁS SUSTO, MÁS LEJOS VUELA', W / 2, 26, 1, WHITE);
+  text(g, 'GOLPES Y CAÍDAS QUITAN VIDA · SIN VIDA, UN GOLPE LO SACA', W / 2, 26, 1, WHITE);
   const tilt = Math.round(Math.sin(t / 300) * 3);
   g.fillStyle(0x444455).fillCircle(28, 52, 8);
   g.lineStyle(3, WHITE).lineBetween(28, 52, 28 + tilt, 42);
@@ -1970,11 +2067,11 @@ function drawControls(g, t) {
     g.fillStyle(i < 3 ? cols[i] : 0x8a8a9c).fillCircle(x, y + (on ? 1 : 0), 5);
     text(g, String(i + 1), x + 1, y - 2, 1, WHITE);
   }
-  text(g, '1 GOLPE (CAMBIA CON LA DIRECCIÓN)\n2 AGARRA Y LANZA\n3 PARRY, EN EL PISO O EN EL AIRE', 60, 70, 1, WHITE, 0);
+  text(g, '1 GOLPE: ↑ GANCHO · > FUERTE · ↓ BARRIDA\n2 AGARRA, LEVANTA Y LANZA\n3 PARRY, EN EL PISO O EN EL AIRE', 60, 70, 1, WHITE, 0);
   text(g, 'TRUCOS', W / 2, 110, 2, YEL);
   text(
     g,
-    'GOLPE LE GANA AL AGARRE, AGARRE AL PARRY Y PARRY AL GOLPE\nLA CALMA SUBE AL RECIBIR, CON PARRY Y BAJO EL MARCO\nDOBLE TOQUE ADELANTE: CORRE · EN EL AIRE: DA VUELTA\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nARRIBA + 1: GOLPE HACIA ARRIBA · ABAJO + 1: BARRIDA\nEN EL AIRE ABAJO + 1: PISOTÓN\n1 + 2 CON LA BARRA DE CALMA LLENA: REMEZÓN',
+    'GOLPE LE GANA AL AGARRE, AGARRE AL PARRY Y PARRY AL GOLPE\nEN LO VERDE EL TEMBLOR NO TE HACE NADA\nDOBLE TOQUE ADELANTE: CORRE · EN EL AIRE: DA VUELTA\nMANTÉN > + 1: GOLPE CARGADO · EN EL AIRE ↓ + 1: PISOTÓN\nLA CALMA SUBE AL RECIBIR, CON PARRY Y EN LO SEGURO\n1 + 2 CON LA BARRA DE CALMA LLENA: REMEZÓN',
     W / 2,
     128,
     1,
@@ -2028,9 +2125,9 @@ function drawSelect(s, g, t) {
     if (same && picked.length > 1)
       [0, 1].forEach((i) => {
         const cc = i === cp ? copyOf(c) : c;
-        drawChar(g, cc, s.sel[i].ok ? 'win' : 'idle0', cx + (i ? 17 : -17), y0 + 86, 1, cc.pal, 2);
+        drawChar(g, cc, s.sel[i].ok ? 'hold' : 'idle0', cx + (i ? 17 : -17), y0 + 86, 1, cc.pal, 2);
       });
-    else drawChar(g, c, ready ? 'win' : 'idle0', cx, y0 + 86 + bounce, 1, c.pal, 3);
+    else drawChar(g, c, ready ? 'hold' : 'idle0', cx, y0 + 86 + bounce, 1, c.pal, 3);
     text(g, c.n, cx, y0 + 88, 2, WHITE);
     text(g, c.t, cx, y0 + 102, 1, 0xa7a7c7);
   });
@@ -2040,8 +2137,8 @@ function drawSelect(s, g, t) {
     text(g, 'P' + (i + 1) + (e.on ? ': ' + CHARS[e.pick].n + (same && i === cp ? ' (1)' : '') : ''), x, 150, 2, PCOL[i], al);
     text(g, !e.on ? 'START PARA JUGAR' : e.ok ? '¡LISTO!' : 'PALANCA ELIGE · 1 OK', x, 168, 1, WHITE, al);
   });
-  text(g, '1 GOLPE · 2 AGARRA · 3 PARRY', W / 2, 214, 1, 0xa7a7c7);
-  text(g, 'DOBLE TOQUE CORRE · 1 + 2 REMEZÓN', W / 2, 224, 1, 0xa7a7c7);
+  text(g, MOVE_HELP, W / 2, 214, 1, 0xa7a7c7);
+  text(g, '2 AGARRA · 3 PARRY · 1 + 2 REMEZÓN', W / 2, 224, 1, 0xa7a7c7);
 }
 
 function drawEnd(s, g, t) {
@@ -2051,7 +2148,7 @@ function drawEnd(s, g, t) {
   if (w.comeback) text(g, '¡REMONTADA!', W / 2, 34, 2, YEL);
   // El ganador celebra.
   const jump = Math.round(Math.abs(Math.sin(t / 220)) * -4);
-  drawChar(g, w.c, 'win', W / 2, 122 + jump, 1, w.c.pal, 3);
+  drawChar(g, w.c, 'hold', W / 2, 122 + jump, 1, w.c.pal, 3);
   text(g, `SOBREVIVIÓ: GRADO ${s.maxG}`, W / 2, 127, 2, WHITE);
   if (s.f.every((f) => f.cpu)) return;
   text(g, s.f.map((f) => `${f.cpu ? 'CPU' : 'P' + (f.i + 1)} ${score(f)} PTS`).join('    '), W / 2, 146, 2, WHITE);
@@ -2172,7 +2269,8 @@ function sfx(s, k, n) {
     } else if (k === 'jump') {
       tone(s, 'square', 300, 640, 0.08, 0.1, at);
     } else if (k === 'whiff') {
-      noise(s, 0.06, 0.12, 2500, 'highpass', at);
+      // Cada golpe suena más grave que el anterior en la lista: se distinguen sin mirar.
+      noise(s, 0.06, 0.14, 2600 - (n || 0) * 350, 'highpass', at);
     } else if (k === 'parry') {
       tone(s, 'square', 1200, 1900, 0.08, 0.15, at);
       tone(s, 'square', 1900, 2400, 0.12, 0.12, at + 0.08);
@@ -2265,3 +2363,4 @@ async function storageGet(key) {
 async function storageSet(key, value) {
   return getStorage().set(key, value);
 }
+})();
