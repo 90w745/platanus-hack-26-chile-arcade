@@ -150,7 +150,7 @@ const FLASH_PAL = new Proxy({}, { get: () => WHITE });
 const GRAY_PAL = new Proxy({}, { get: () => 0x3a3a4c });
 
 // Pose de cada golpe: [arranque, golpe]. La del golpe se mantiene en el activo y en media recuperación.
-const POSES = { jab: ['jab0', 'jab1'], smash: ['smash0', 'smash1'], upper: ['jab0', 'upper1'], sweep: ['dodge', 'sweep1'], akick: ['jump', 'akick1'], stomp: ['fall', 'stomp1'], grab: ['grab1', 'grab1'] };
+const POSES = { jab: ['jab0', 'jab1'], smash: ['smash0', 'smash1'], upper: ['jab0', 'upper1'], sweep: ['dodge', 'sweep1'], akick: ['jump', 'akick1'], stomp: ['fall', 'stomp1'], grab: ['dodge', 'grab1'] };
 
 // Si los dos eligen al mismo, el segundo juega con la ropa de otro color y su nombre lleva (1).
 const copyIdx = ([a, b]) => (b.ok && (!a.ok || a.at > b.at) ? 0 : 1);
@@ -434,9 +434,9 @@ const STAGES = (() => {
         [birds, 30, 3, 30, 26],
         [houses, 0, 8, 40, 180, 5, 34, 1],
         [0, 180, 320, 25, 26],
-        [walk, 198, 45, 0, 2, 22],
-        [walk, 201, -12, 100, 1, 13],
-        [walk, 196, -28, 250, 0, 25],
+        [walk, 190, 45, 0, 2, 22],
+        [walk, 192, -12, 100, 1, 13],
+        [walk, 189, -28, 250, 0, 25],
         [poles, 150, 205, 20, 300],
         [134, 158, 52, 3, 27, 140, 166, 40, 20, 27, 152, 170, 16, 8, 5, 144, 190, 32, 2, 13, 0, 205, 320, 35, 32, 32, 205, 256, 8, 26],
         [sym, 138, 161, 2, 44, 27, 90, 150, 38, 10, 16, 96, 160, 26, 4, 16, 106, 164, 4, 41, 13],
@@ -1784,6 +1784,7 @@ function drawFighter(s, g, f, t) {
   // Con mucho susto, transpira.
   if (f.susto >= 100 && f.flashT <= 0) g.fillStyle(0x7fd0ea).fillRect(cx - f.face * 7, ht + 3 + (((t / 120) | 0) % 3), 1, 2);
   if (a === 'remezon') g.lineStyle(2, YEL, 0.9).strokeCircle(cx, feet - 13, 6 + f.act.t / 4);
+  if (a === 'upper' && f.act.t >= m.s && f.act.t < m.s + m.a) g.lineStyle(2, WHITE, 0.8).beginPath().arc(cx, feet - 16, 13, f.face > 0 ? 0.5 : 2.64, f.face > 0 ? -1.7 : 4.84, f.face > 0).strokePath();
   if (a === 'parry' && f.act.t < 160) g.lineStyle(2, 0x9fe8ff, 1 - f.act.t / 200).strokeCircle(cx + f.face * 3, feet - 14, 14);
   // Marca del jugador sobre la cabeza.
   g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, ht - 7, cx + 3, ht - 7, cx, ht - 4);
