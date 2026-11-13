@@ -118,32 +118,42 @@ const HEADS = {
   PATY: [6, '..kk.kk.kk4./.kbbkbbkbbk3./.kbBkbBkbBkk../k11hk./k12hk/k5h6shk/k3h9sk/k3h3sekseksk/k3h3sessessk/k3hSsr4srsk/k3hkS3srrsk./.khh8k..'],
   CATA: [7, '4.7k4./3.k7hk3./..k9hk../.k5hkbbkbbk./.k12hk/k6h6shk/k4h9sk/k4h3sekseksk/k4h3sessessk/k4hSsr4srsk/k4hkS3srrsk./k3h8k3.'],
   CHEPO: [8, '5.7k6./4.k7bk5./4.k7Bk5./.4k7b5k./k16bk/.16k./..khh3skkskkssk../..khh4sessessk../..khh4sessessk../..kS4s6hsk../3.kS3sh4shk3./4.10k4.'],
-  DANI: [6, '3.7k6./..k7bk5./.k9bk4./.k10b4k/k11b3Bk/khh12k./khh3skkskkssk../khh4sessessk../khh4sessessk../kS10sk3./.kS4skkssk4./..10k4.'],
+  DANI: [6, '3.7k6./..k7bk5./.k9bk4./.k10b4k/k11b3Bk/khh12k./khh3skkskkssk../khh4sessessk../khh4sessessk../kS10sk3./.kS4sksssk4./..10k4.'],
 };
 const PALS = {
   PATY: { k: 0x1a1220, s: 0xf2c09a, S: 0xc98a68, h: 0x6a3a22, H: 0x4a2416, b: 0x6fd0f0, B: 0x3a98c0, p: 0xf07aa8, P: 0xc0507e, d: 0xfff0a0, l: 0xf07aa8, w: 0xf2c09a, f: 0x8ad8f0, e: 0x1a1220, r: 0xe0506a },
   CATA: { k: 0x1a1220, s: 0xf2c09a, S: 0xc98a68, h: 0xf0d060, H: 0xc8a040, b: 0x2a2a3a, B: 0x6a6a7a, p: 0xf4f0e6, P: 0xc8c0b0, d: 0x4a8ae0, l: 0xc4a46c, w: 0xf2c09a, f: 0x8a4a24, e: 0x1a1220, r: 0xe0506a },
   CHEPO: { k: 0x1a1220, s: 0xd9a07a, S: 0xa8704f, h: 0x2a1a14, H: 0x2a1a14, b: 0xe8cc7a, B: 0x5a3020, p: 0xd02c34, P: 0x901c24, d: 0xf0e0b0, l: 0x3a3040, w: 0x3a3040, f: 0x5a3020, e: 0x1a1220, r: 0xc0504a },
-  DANI: { k: 0x1a1220, s: 0xd8a07c, S: 0xa87050, h: 0x2a1a14, H: 0x2a1a14, b: 0xe0303a, B: 0x8a1f2a, p: 0x2a4ac0, P: 0x1a2c80, d: 0xf6f6f6, l: 0x2a4ac0, w: 0x2a4ac0, f: 0xf6f6f6, e: 0x1a1220, r: 0xc0504a },
+  DANI: { k: 0x1a1220, s: 0xd8a07c, S: 0xa87050, h: 0x2a1a14, H: 0x2a1a14, b: 0xeceef4, B: 0x9aa0b4, p: 0xf2b42c, P: 0xb87a18, d: 0xf8d878, l: 0x44608c, w: 0x44608c, f: 0xf6f6f6, e: 0x1a1220, r: 0xc0504a },
 };
 for (const k in BODY) BODY[k][3] = unrle(BODY[k][3]);
 
 const CHARS = [
-  { n: 'PATY', t: 'RÁPIDA', spd: 1.1, jmp: 1.05, wt: 0.95, pow: 0.95 },
-  { n: 'CHEPO', t: 'PESADO', spd: 0.9, jmp: 0.95, wt: 1.18, pow: 1.15 },
-  { n: 'CATA', t: 'GOLPE FUERTE', spd: 1, jmp: 1, wt: 0.9, pow: 1.12 },
-  { n: 'DANI', t: 'VELOZ', spd: 1.2, jmp: 1.05, wt: 0.88, pow: 0.95 },
+  { n: 'PATY', t: 'SALTA ALTO', spd: 1.05, jmp: 1.18, wt: 0.95, pow: 0.96, lg: 0 },
+  { n: 'CHEPO', t: 'PESADO', spd: 0.88, jmp: 0.92, wt: 1.2, pow: 1.06, lg: -1 },
+  { n: 'CATA', t: 'GOLPE FUERTE', spd: 1, jmp: 1, wt: 0.95, pow: 1.22, lg: 2 },
+  { n: 'DANI', t: 'VELOZ', spd: 1.2, jmp: 1.02, wt: 0.9, pow: 0.95, lg: 1 },
 ];
+// Cada uno con su largo de piernas sobre el mismo cuerpo: la primera fila de pierna se repite o se quita.
 for (const c of CHARS) {
   c.pal = PALS[c.n];
   c.head = [HEADS[c.n][0], unrle(HEADS[c.n][1])];
+  c.body = {};
+  for (const k in BODY) {
+    const [a, hx, hy, m] = BODY[k];
+    const i = m.findIndex((r) => r.includes('w'));
+    const legs = m.filter((r) => r.includes('w')).length;
+    c.body[k] = [a, hx, hy, i < 0 || (c.lg < 0 && legs < 3) ? m : m.slice(0, i).concat(Array(Math.max(0, c.lg)).fill(m[i]), m.slice(c.lg < 0 ? i + 1 : i))];
+  }
 }
 const FLASH_PAL = new Proxy({}, { get: () => WHITE });
+const GRAY_PAL = new Proxy({}, { get: () => 0x3a3a4c });
 
 // Pose de cada golpe: [arranque, golpe]. La del golpe se mantiene en el activo y en media recuperación.
 const POSES = { jab: ['jab0', 'jab1'], smash: ['smash0', 'smash1'], upper: ['jab0', 'upper1'], sweep: ['dodge', 'sweep1'], akick: ['jump', 'akick1'], stomp: ['fall', 'stomp1'], grab: ['grab1', 'grab1'] };
 
 // Si los dos eligen al mismo, el segundo juega con la ropa de otro color y su nombre lleva (1).
+const copyIdx = ([a, b]) => (b.ok && (!a.ok || a.at > b.at) ? 0 : 1);
 function copyOf(c) {
   const pal = Object.assign({}, c.pal);
   for (const k of 'pPdlbB') {
@@ -181,11 +191,11 @@ function spr(g, map, cx, top, face, pal, anchor, sc) {
 
 // Dibuja un cuadro del cuerpo y encima la cabeza. Devuelve el borde de arriba de la cabeza.
 function drawChar(g, c, fr, cx, feet, face, pal, z) {
-  const [a, hx, hy, m] = BODY[fr];
+  const [a, hx, hy, m] = c.body[fr];
   const top = feet - m.length * z;
   spr(g, m, cx, top, face, pal, a, z);
   const [ha, hm] = c.head;
-  const ht = top + (hy - hm.length) * z;
+  const ht = top + (hy - hm.length + (fr === 'idle0' && (Date.now() / 450) & 1)) * z;
   spr(g, hm, cx + hx * z * face, ht, face, pal, ha, z);
   return ht;
 }
@@ -201,7 +211,7 @@ const STAGES = (() => {
   // Paleta indexada. Por hora (día, atardecer, noche): 4 franjas de cielo, astro y luz de ventana.
   // Después, los colores apagados del resto, desde el índice 6.
   const P = (
-    '6a94c082a8cc9cbcd6b6cedeeee6c84e5a6e' +
+    '6a94c082a8cc9cbcd6b6cedef6d8604e5a6e' +
     '4c41707a5c88ac707cd29a7ae8b070a88a62' +
     '161c361e284a28345c34406cd8d8ccffd27a' +
     '7d88a2d6dce26e7c684c54705c6480c2b69ea89c867a5c443e303098a0aa667e58e6d4a6c8b48a' +
@@ -234,7 +244,10 @@ const STAGES = (() => {
 
   // Cielo en franjas y astro: sol, sol bajo o luna según la paleta.
   const sky = (x, y) => {
-    for (let i = 0; i < 4; i++) R(0, i * 40, W, i > 2 ? H : 40, i);
+    // 7 franjas: las 4 de la paleta y su mezcla entre ellas. De noche, estrellas.
+    for (let i = 0; i < 7; i++) R(0, i * 20, W, i > 5 ? H : 20, i & 1 ? mix(C[i >> 1], C[(i >> 1) + 1], 0.5) : C[i >> 1]);
+    S = 7;
+    if (C == PALS[2]) for (let i = 0; i < 26; i++) R(rnd(W), rnd(110), 1, 1, 4);
     G.fillStyle(C[4]).fillCircle(x, y, 9);
   };
   // Cerros por semilla; la cordillera lleva nieve.
@@ -360,7 +373,7 @@ const STAGES = (() => {
   // de la mitad izquierda, puertas, objetos, objeto pesado, primera capa viva y capas.
   return [
     [
-      'EL DEPTO', 200, 120, [[130, 190, 168], [44, 80, 132, 1]], [[52, 72]], 'tetera taza pan taza', 'tele', 9,
+      'EL DEPTO', 200, 120, [[130, 190, 168], [44, 80, 132, 1]], [[52, 72, 40]], 'tetera taza pan taza', 'tele', 9,
       [
         [sky, 250, 30],
         [hills, 150, 3, 6, 50, 1],
@@ -376,7 +389,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'LA CASA', 205, 136, [[140, 180, 182, 2], [84, 116, 140]], [[95, 105]], 'chori pelota macetero teja', 'gas', 2,
+      'LA CASA', 205, 136, [[140, 180, 182, 2], [84, 116, 140]], [[95, 105, 37]], 'chori pelota macetero teja', 'gas', 2,
       [
         [sky, 240, 84],
         [hills, 150, 5, 6, 55, 1],
@@ -395,7 +408,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162]], [[63, 81]], 'macetero balde pelota teja', 'parabolica', 3,
+      'EL EDIFICIO', 200, 110, [[140, 180, 150], [56, 88, 162]], [[63, 81, 28]], 'macetero balde pelota teja', 'parabolica', 3,
       [
         [sky, 250, 84],
         [hills, 175, 9, 8, 50],
@@ -414,7 +427,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'LA POBLA', 205, 128, [[136, 184, 160], [92, 128, 150]], [[146, 174]], 'pelota teja macetero pan', 'gas', 2,
+      'LA POBLA', 205, 128, [[136, 184, 160], [92, 128, 150]], [[146, 174, 44]], 'pelota teja macetero pan', 'gas', 2,
       [
         [sky, 60, 84],
         [hills, 150, 3, 6, 55, 1],
@@ -430,7 +443,7 @@ const STAGES = (() => {
       ],
     ],
     [
-      'LA PLAYA', 200, 130, [[136, 184, 150], [90, 124, 164]], [[148, 172]], 'pelota balde chori pelota', 'sandia', 4,
+      'LA PLAYA', 200, 130, [[136, 184, 150], [90, 124, 164]], [[148, 172, 20]], 'pelota balde chori pelota', 'sandia', 4,
       [
         [sky, 250, 84],
         [hills, 140, 7, 8, 40],
@@ -496,7 +509,7 @@ const GRADOS = [
 const MOVES = {
   jab: { s: 50, a: 60, e: 210, box: [3, 15, -15, -8], d: 6, b: 60, gr: 1.6, an: 0.5 },
   smash: { s: 220, a: 80, e: 440, box: [3, 18, -16, -8], d: 13, b: 110, gr: 3.1, an: 0.6 },
-  upper: { s: 70, a: 80, e: 320, box: [-3, 11, -30, -12], d: 9, b: 85, gr: 2.6, an: 1.35 },
+  upper: { s: 70, a: 80, e: 320, box: [-3, 12, -30, 4], d: 9, b: 85, gr: 2.6, an: 1.35 },
   sweep: { s: 90, a: 80, e: 360, box: [1, 18, -6, 0], d: 8, b: 75, gr: 2.2, an: 1.15 },
   akick: { s: 60, a: 160, e: 320, box: [1, 14, -12, -2], d: 8, b: 70, gr: 2.5, an: 0.45, air: true },
   stomp: { s: 120, a: 120, e: 380, box: [-6, 6, -4, 7], d: 10, b: 60, gr: 2.6, an: -1.2, air: true },
@@ -535,11 +548,12 @@ function create() {
   s.idle = 0;
   s.picks = [0, 1];
 
-  // Un poco más grande que la pantalla para que al inclinarse no se vean las esquinas.
-  s.world = s.add.container(W / 2, H / 2).setScale(1.05);
-  s.bg = s.add.graphics({ x: -W / 2, y: -H / 2 });
+  // El mundo va en un contenedor que se inclina y se acerca con el temblor.
+  s.world = s.add.container(W / 2, H / 2);
+  s.bg = s.make.graphics({}, false);
+  s.bgt = s.add.renderTexture(-W / 2, -H / 2, W, H).setOrigin(0);
   s.dyn = s.add.graphics({ x: -W / 2, y: -H / 2 });
-  s.world.add([s.bg, s.dyn]);
+  s.world.add([s.bgt, s.dyn]);
   s.hud = s.add.graphics().setDepth(10);
   s.flashRect = s.add.rectangle(W / 2, H / 2, W, H, 0xffffff).setAlpha(0).setDepth(20);
 
@@ -577,8 +591,11 @@ function update(time, delta) {
   }
 
   if (s.mode === 'play' || s.mode === 'demo') {
-    if (s.stop > 0) s.stop -= delta;
-    else simulate(s, dt);
+    if (s.stop > 0) {
+      s.stop -= delta;
+      // El destello blanco dura 50 ms aunque la pausa de impacto siga: después se ve la pose de dolor.
+      for (const f of s.f) f.flashT -= delta;
+    } else simulate(s, dt);
     music(s);
   }
   if (s.mode === 'end') stepParticles(s, dt);
@@ -628,8 +645,7 @@ function updateSelect(s, dt) {
       if (!e.on) e.pick = (s.sel[1 - i].pick + 1 + ((Math.random() * (n - 1)) | 0)) % n;
       s.picks[i] = e.pick;
     });
-    const [a, b] = s.sel;
-    s.copy = (a.at || 0) > (b.at || 0) ? 0 : 1;
+    s.copy = copyIdx(s.sel);
     startMatch(s, s.sel.map((e) => e.on), false);
   }
 }
@@ -653,8 +669,6 @@ function makeFighter(s, i, cpu, ci) {
     jbuf: 0,
     jumps: 1,
     jumping: false,
-    dodge: 0,
-    dodged: false,
     run: 0,
     tap: { d: 0, t: -1e9 },
     susto: 0,
@@ -714,8 +728,7 @@ function startMatch(s, humans, demo) {
   s.idle = 0;
   s.mus = { step: 0, next: 0 };
   s.tod = (Math.random() * 3) | 0;
-  s.bg.clear();
-  s.st.bg(s.bg, s.tod);
+  paintBg(s);
   s.help = 0;
   if (!demo) {
     say(s, s.st.n, YEL, 2200);
@@ -820,19 +833,13 @@ function stepFighter(s, f, o, inp, dt) {
     return;
   }
 
-  const free = f.stun <= 0 && f.daze <= 0 && f.dodge <= 0;
+  const free = f.stun <= 0 && f.daze <= 0;
   f.stun = Math.max(0, f.stun - ms);
   f.daze = Math.max(0, f.daze - ms);
   const dir = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
   if (inp.up) f.jbuf = 100;
 
-  if (f.dodge > 0) {
-    f.dodge -= ms;
-    if (f.dodge <= 0) {
-      f.vx *= 0.4;
-      f.vy *= 0.4;
-    }
-  } else if (free) {
+  if (free) {
     const busy = f.act && f.act.k !== 'hold' && !(MOVES[f.act.k] && MOVES[f.act.k].air);
     // Doble toque: en el piso corre; en el aire da vuelta al tiro.
     const td = inp.tr ? 1 : inp.tl ? -1 : 0;
@@ -848,6 +855,7 @@ function stepFighter(s, f, o, inp, dt) {
       } else f.tap = { d: td, t: s.mt };
     }
     if (f.ground && f.run !== dir) f.run = 0;
+    if (f.run && f.ground && Math.random() < 0.25) puff(s, f.x - f.run * 6, f.y - 1, 1, 0xc8bca8);
     const max = 118 * c.spd * (f.run ? 1.45 : 1);
     if (dir && !(busy && f.ground)) {
       // En el aire no se frena lo que ya va más rápido que el tope.
@@ -908,10 +916,8 @@ function stepFighter(s, f, o, inp, dt) {
   }
   if (g.tilt && f.ground && !(inDoor && f.refugio < 2000)) f.x += s.lat.dir * s.lat.k * 40 * dt;
 
-  if (f.dodge <= 0) {
-    const fast = inp.d && !f.ground && f.vy > -40;
-    f.vy = Math.min(f.vy + (fast ? 1800 : 900) * dt, fast ? 420 : 300);
-  }
+  const fast = inp.d && !f.ground && f.vy > -40;
+  f.vy = Math.min(f.vy + (fast ? 1800 : 900) * dt, fast ? 420 : 300);
   const py = f.y;
   const wasGround = f.ground;
   f.x += f.vx * dt;
@@ -937,7 +943,6 @@ function stepFighter(s, f, o, inp, dt) {
         f.vy = 0;
         f.ground = true;
         f.jumps = 1;
-        f.dodged = false;
         f.plat = p;
         if (f.act && MOVES[f.act.k] && MOVES[f.act.k].air) f.act = null;
         break;
@@ -1004,20 +1009,7 @@ function readButtons(s, f, o, inp) {
       f.act = { k: 'grab', t: 0 };
     }
   } else if (inp.b3) {
-    if (f.ground) {
-      f.act = { k: 'parry', t: 0 };
-    } else if (!f.dodged) {
-      // Esquive aéreo hacia donde apunte el joystick.
-      const dx = (inp.r ? 1 : 0) - (inp.l ? 1 : 0);
-      const dy = (inp.d ? 1 : 0) - (inp.uh ? 1 : 0);
-      const n = Math.hypot(dx, dy) || 1;
-      f.vx = (dx / n) * 230;
-      f.vy = (dy / n) * 230;
-      f.dodge = 160;
-      f.inv = 190;
-      f.dodged = true;
-      sfx(s, 'dodge');
-    }
+    f.act = { k: 'parry', t: 0 };
   }
 }
 
@@ -1103,7 +1095,7 @@ function parried(s, f, attacker) {
   attacker.daze = 350;
   attacker.vx = -attacker.face * 90;
   s.stop = 110;
-  ring(s, f.x, f.y - 10, WHITE);
+  ring(s, f.x, f.y - 12, 0x9fe8ff, 24);
   sfx(s, 'parry');
 }
 
@@ -1121,7 +1113,8 @@ function hit(s, t, dir, dmg, base, growth, ang, by) {
   t.spiked = false;
   t.flashT = 50;
   dropHold(t);
-  s.stop = Math.min(120, 50 + dmg * 4);
+  // Si el golpe probablemente saca, la pausa es más larga.
+  s.stop = kb > 400 ? 200 : Math.min(120, 50 + dmg * 4);
   s.kick = Math.min(3, 1 + t.susto / 60);
   if (by) {
     by.combo = chain ? by.combo + 1 : 1;
@@ -1132,8 +1125,8 @@ function hit(s, t, dir, dmg, base, growth, ang, by) {
   }
   const big = t.susto > 90;
   if (big) flash(s, 0.3);
-  s.fx.push({ x: t.x - dir * 3, y: t.y - 12, r: big ? 10 : 6, l: 0.12 });
-  puff(s, t.x, t.y - 10, big ? 10 : 6, big ? YEL : WHITE);
+  s.fx.push({ x: t.x - dir * 4, y: t.y - 14, r: big || kb > 400 ? 14 : 9, l: 0.16, d: dir });
+  puff(s, t.x, t.y - 12, big ? 10 : 6, big ? ORANGE : YEL);
   sfx(s, big ? 'bighit' : 'hit', t.susto);
 }
 
@@ -1190,6 +1183,7 @@ function checkOut(s, f) {
   const ex = Phaser.Math.Clamp(f.x, 4, W - 4);
   const ey = Phaser.Math.Clamp(f.y, 4, H - 4);
   for (let k = 0; k < 3; k++) puff(s, ex, ey, 12, [WHITE, YEL, PCOL[f.i]][k]);
+  ring(s, ex, ey, PCOL[f.i], 20);
   flash(s, 0.45);
   s.kick = 4;
   s.cheer = 1500;
@@ -1212,8 +1206,6 @@ function respawn(s, f) {
   f.inv = 1500;
   f.blink = 1500;
   f.out = 0;
-  f.dodge = 0;
-  f.dodged = false;
   f.spiked = false;
 }
 
@@ -1289,11 +1281,12 @@ function updateQuake(s, dt) {
   // Remezones: desde el grado 5 el piso salta y lo que está suelto brinca.
   if (g.g >= 5) {
     s.joltT = (s.joltT || 0) - dt * 1000;
+    if (s.joltT < 250 && Math.random() < 0.5) puff(s, s.plats[0].x1 + Math.random() * (s.plats[0].x2 - s.plats[0].x1), s.plats[0].y, 1, 0x8a8a9c);
     if (s.joltT <= 0) {
-      s.joltT = 1700 - g.g * 130 + Math.random() * 500;
+      s.joltT = 1950 - g.g * 130;
       s.kick = g.g / 2;
       for (const f of s.f) {
-        if (f.ground && f.out <= 0 && !f.grabbedBy) {
+        if (f.ground && f.out <= 0 && !f.grabbedBy && !f.act) {
           f.vy = -40 - g.g * 9;
           f.ground = false;
         }
@@ -1458,7 +1451,6 @@ function cpuIntent(s, f, o, dt) {
     out.r = w.r;
     out.uh = true;
     if (f.vy > 0 && f.jumps > 0) out.up = true;
-    else if (f.vy > 0 && !f.dodged && f.y > fl.y - 10) out.b3 = true;
     return out;
   }
   if (o.act && MOVES[o.act.k] && o.act.t < 50 && adx < 24 && Math.random() < 0.1) {
@@ -1681,6 +1673,14 @@ function approach(v, target, step) {
 
 // ---------- Dibujo ----------
 
+// Fondo estático: se dibuja una vez por partido en una textura, con un grano fijo para que lo plano no se vea plano.
+function paintBg(s) {
+  const g = s.bg.clear();
+  s.st.bg(g, s.tod);
+  for (let k = 0; k < 9000; k++) g.fillStyle(k & 1 ? 0xffffff : 0, 0.06).fillRect((Math.random() * W) | 0, (Math.random() * H) | 0, 1, 1);
+  s.bgt.clear().draw(g);
+}
+
 function render(s, t) {
   const g = s.dyn;
   g.clear();
@@ -1690,10 +1690,13 @@ function render(s, t) {
   s.kick = Math.max(0, s.kick - 0.25);
   s.world.x = Math.round(W / 2 + (Math.random() - 0.5) * amp * 2);
   s.world.y = Math.round(H / 2 + (Math.random() - 0.5) * amp * 2);
-  s.world.rotation = s.lat.k * s.lat.dir * 0.04 + (amp ? Math.sin(t / 170) * ph.amp * 0.006 : 0);
+  const rot = s.lat.k * s.lat.dir * 0.1 + (amp ? Math.sin(t / 170) * ph.amp * 0.006 : 0);
+  s.world.rotation = rot;
+  // El zoom justo para que al inclinarse no se vean las esquinas vacías.
+  s.world.setScale(1.04 + Math.abs(rot) * 1.34);
   // El fondo tiembla a otro ritmo que el primer plano.
-  s.bg.x = -W / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
-  s.bg.y = -H / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
+  s.bgt.x = -W / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
+  s.bgt.y = -H / 2 + Math.round((Math.random() - 0.5) * amp * 1.6);
 
   s.st.anim(g, t, s);
   g.fillStyle(K, 0.38).fillRect(0, 0, W, H);
@@ -1705,15 +1708,17 @@ function render(s, t) {
   }
   const fl = s.plats[0];
   const c = (fl.x1 + fl.x2) / 2;
+  if (s.phase >= 3) for (const d of s.st.doors) g.lineStyle(2, YEL, 0.6 + 0.4 * Math.sin(t / 120)).strokeRect(d[0], fl.y - d[2], d[1] - d[0], d[2]);
   if (s.phase >= 3) {
     for (const h of fl.holes || [[c - 44, c - 30], [c + 30, c + 44]]) {
       if (fl.holes) {
         g.fillStyle(K).fillRect(h[0], fl.y, h[1] - h[0], H - fl.y);
         g.fillStyle(0x8a8a9c).fillTriangle(h[0], fl.y, h[0] + 4, fl.y, h[0], fl.y + 8).fillTriangle(h[1], fl.y, h[1] - 4, fl.y, h[1], fl.y + 6);
       } else {
-        // Grietas que crecen hasta que el piso se parte.
-        const n = 2 + s.phase * 2 + ((s.mt / 800) % 4);
-        for (let k = 0; k < n; k++) g.fillStyle(K).fillRect(h[0] + 3 + ((k * 5) % 9), fl.y + (k % 3), 2, 2 + (k % 2) * 2);
+        // Grietas que crecen hasta que el piso se parte: cortan el borde y bajan en zigzag.
+        const n = Math.min(14, 3 + (s.mt - GRADOS[3].t) / 900);
+        g.fillStyle(K).fillRect(h[0] + 7 - n, fl.y, n * 2, 2);
+        for (let k = 0; k < n; k++) g.fillRect(h[0] + 2 + ((k * 5) % 7), fl.y + k * 2, 3, 3);
       }
     }
   }
@@ -1736,9 +1741,11 @@ function render(s, t) {
       s.fx.splice(i, 1);
       continue;
     }
-    // Chispa en estrella.
-    g.fillStyle(YEL).fillRect(e.x - e.r, e.y - 1, e.r * 2, 3).fillRect(e.x - 1, e.y - e.r, 3, e.r * 2);
-    g.fillStyle(WHITE).fillRect(e.x - e.r / 2, e.y, e.r, 1).fillRect(e.x, e.y - e.r / 2, 1, e.r);
+    // Chispa en estrella y rayas hacia donde sale el golpe.
+    const r = e.r * Math.min(1, 0.4 + e.l * 6);
+    g.fillStyle(YEL).fillRect(e.x - r, e.y - 1, r * 2, 3).fillRect(e.x - 1, e.y - r, 3, r * 2);
+    g.fillStyle(WHITE).fillRect(e.x - r / 2, e.y, r, 1).fillRect(e.x, e.y - r / 2, 1, r);
+    for (let k = -1; k < 2; k++) g.fillRect(e.d > 0 ? e.x + 5 : e.x - 5 - r, e.y + k * 5, r, 1);
   }
   for (const p of s.parts) g.fillStyle(p.c, Math.min(1, p.l * 4)).fillRect(Math.round(p.x), Math.round(p.y), p.z, p.z);
   // Grado 7 y 8: la luz baja de golpe, una vez por segundo como máximo.
@@ -1749,12 +1756,11 @@ function render(s, t) {
 
 function drawFighter(s, g, f, t) {
   if (f.out > 0 || (f.blink > 0 && ((t / 70) | 0) % 2)) return;
-  if (f.dodge > 0 && ((t / 40) | 0) % 2) return;
   const a = f.act ? f.act.k : '';
   const m = MOVES[a];
   let fr = 'idle0';
   if (f.stun > 0 || f.grabbedBy) fr = 'hurt';
-  else if (f.dodge > 0 || f.land > 0) fr = 'dodge';
+  else if (f.land > 0) fr = 'dodge';
   else if (m) fr = POSES[a][f.act.t >= m.s && f.act.t < (m.s + m.a + m.e) / 2 ? 1 : 0];
   else if (a === 'parry') fr = 'parry';
   else if (a === 'throwing') fr = 'jab1';
@@ -1762,11 +1768,13 @@ function drawFighter(s, g, f, t) {
   else if (a === 'hold' || f.hold) fr = 'hold';
   else if (!f.ground) fr = f.vy < 0 ? 'jump' : 'fall';
   else if (Math.abs(f.vx) > 20) fr = ((t / (f.run ? 70 : 110)) | 0) % 2 ? 'run1' : 'run0';
-  const cx = Math.round(f.x);
+  // Se inclina hacia atrás al preparar el golpe y hacia adelante al soltarlo.
+  const cx = Math.round(f.x) + (m ? (f.act.t < m.s ? -1 : f.act.t < m.s + m.a ? 2 : 0) * f.face : 0);
   const feet = Math.round(f.y);
+  if (f.stun > 0 && Math.hypot(f.vx, f.vy) > 260) s.parts.push({ x: f.x, y: f.y - 12, vx: 0, vy: 0, l: 0.3, c: 0xc8c8d8, z: 3, ng: true });
   const ht = drawChar(g, f.c, fr, cx, feet, f.face, f.flashT > 0 ? FLASH_PAL : f.c.pal, 1);
   // Golpe cargado: chispas alrededor mientras se mantiene el botón.
-  if (a === 'smash' && f.act.ch > 0) for (let k = 0; k < 3; k++) g.fillStyle(YEL).fillRect(cx + (Math.random() - 0.5) * 18, feet - Math.random() * 26, 1, 1);
+  if (a === 'smash' && f.act.ch > 0) g.lineStyle(2, ((t / 80) | 0) % 2 ? YEL : WHITE).strokeCircle(cx, feet - 14, 18 - f.act.ch / 50);
   if (f.daze > 0) {
     for (let k = 0; k < 3; k++) {
       const an = t / 150 + (k * Math.PI * 2) / 3;
@@ -1776,7 +1784,7 @@ function drawFighter(s, g, f, t) {
   // Con mucho susto, transpira.
   if (f.susto >= 100 && f.flashT <= 0) g.fillStyle(0x7fd0ea).fillRect(cx - f.face * 7, ht + 3 + (((t / 120) | 0) % 3), 1, 2);
   if (a === 'remezon') g.lineStyle(2, YEL, 0.9).strokeCircle(cx, feet - 13, 6 + f.act.t / 4);
-  if (a === 'parry' && f.act.t < 160) g.lineStyle(1, WHITE, 1 - f.act.t / 160).strokeCircle(cx, feet - 13, 15);
+  if (a === 'parry' && f.act.t < 160) g.lineStyle(2, 0x9fe8ff, 1 - f.act.t / 200).strokeCircle(cx + f.face * 3, feet - 14, 14);
   // Marca del jugador sobre la cabeza.
   g.fillStyle(PCOL[f.i]).fillTriangle(cx - 3, ht - 7, cx + 3, ht - 7, cx, ht - 4);
 }
@@ -1840,6 +1848,7 @@ function drawHud(s, t) {
   s.flash = Math.max(0, s.flash - 0.04);
   s.flashRect.setAlpha(s.flash);
   if (s.mode === 'select') return drawSelect(s, g, t);
+  if (s.mode === 'end') return drawEnd(s, g, t);
   const ph = GRADOS[Math.max(0, s.phase)];
 
   // Sismógrafo.
@@ -1851,7 +1860,7 @@ function drawHud(s, t) {
   const pop = Math.max(0, 1 - (t - (s.gPop || 0)) / 400);
   text(g, String(ph.g), 160, 10 - Math.round(pop * 3), 4, YEL);
   const left = Math.max(0, Math.ceil((MATCH_MS - s.mt) / 1000));
-  text(g, s.sudden ? '!!' : String(left), 187, 5, 1, WHITE, 1);
+  text(g, s.sudden ? '!!' : ((left / 60) | 0) + ':' + String(left % 60).padStart(2, '0'), 187, 5, 1, WHITE, 1);
 
   // Cuenta antes del grado 6.
   const cd = s.countdown != null ? s.mt - s.countdown : -1;
@@ -1864,12 +1873,12 @@ function drawHud(s, t) {
     const x = i ? W - 6 : 6;
     const al = i ? 1 : 0;
     text(g, (f.cpu ? 'CPU ' : 'P' + (i + 1) + ' ') + f.c.n, x, 4, 1, PCOL[i], al);
-    text(g, Math.round(f.susto) + '%', x, 12, 3, f.susto >= 100 ? RED : f.susto >= 50 ? YEL : WHITE, al);
-    text(g, String(score(f)), x, 34, 1, WHITE, al);
+    const col = f.susto >= 100 ? RED : f.susto >= 50 ? YEL : WHITE;
+    text(g, String(Math.round(f.susto)), x, 12, 3, col, al);
+    text(g, 'SUSTO', x, 31, 1, col, al);
     for (let k = 0; k < 2; k++) {
       const hx = i ? W - 16 - k * 20 : 16 + k * 20;
-      if (k < f.lives) spr(g, f.c.head[1], hx, 42, i ? -1 : 1, f.c.pal, f.c.head[0]);
-      else g.fillStyle(0x444455).fillRect(hx - 5, 45, 10, 8);
+      spr(g, f.c.head[1], hx, 42, i ? -1 : 1, k < f.lives ? f.c.pal : GRAY_PAL, f.c.head[0]);
     }
     const full = f.calma >= 100;
     const bx = i ? W - 52 : 6;
@@ -1886,12 +1895,11 @@ function drawHud(s, t) {
   if (s.help > 0 && s.mode === 'play') text(g, '1 GOLPE · 2 AGARRA · 3 PARRY · DOBLE TOQUE CORRE', W / 2, 228, 1, WHITE);
 
   if (s.mode === 'demo') drawTitle(s, g, t);
-  if (s.mode === 'end') drawEnd(s, g, t);
 }
 
-// Antes de jugar: qué hace cada botón, con el panel del mueble dibujado.
+// Antes de jugar: qué hace cada botón, con los controles del mueble dibujados.
 function drawControls(g, t) {
-  g.fillStyle(K, 0.96).fillRect(0, 0, W, 214);
+  g.fillStyle(K).fillRect(0, 0, W, 214);
   text(g, 'CÓMO SE JUEGA', W / 2, 8, 2, YEL);
   text(g, 'SÁCALO DE LA PANTALLA · 2 VIDAS CADA UNO', W / 2, 26, 1, WHITE);
   const tilt = Math.round(Math.sin(t / 300) * 3);
@@ -1907,11 +1915,11 @@ function drawControls(g, t) {
     g.fillStyle(i < 3 ? cols[i] : 0x8a8a9c).fillCircle(x, y + (on ? 1 : 0), 5);
     text(g, String(i + 1), x + 1, y - 2, 1, WHITE);
   }
-  text(g, '1 GOLPE (CAMBIA CON LA DIRECCIÓN)\n2 AGARRA Y LANZA\n3 PARRY · EN EL AIRE ESQUIVA', 60, 70, 1, WHITE, 0);
+  text(g, '1 GOLPE (CAMBIA CON LA DIRECCIÓN)\n2 AGARRA Y LANZA\n3 PARRY, EN EL PISO O EN EL AIRE', 60, 70, 1, WHITE, 0);
   text(g, 'TRUCOS', W / 2, 110, 2, YEL);
   text(
     g,
-    'DOBLE TOQUE ADELANTE: CORRE\nDOBLE TOQUE EN EL AIRE: DA VUELTA AL TIRO\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nARRIBA + 1: GOLPE HACIA ARRIBA · ABAJO + 1: BARRIDA\nEN EL AIRE ABAJO + 1: PISOTÓN\n1 + 2 CON LA BARRA LLENA: REMEZÓN',
+    'GOLPE LE GANA AL AGARRE, AGARRE AL PARRY Y PARRY AL GOLPE\nBAJO EL MARCO DE UNA PUERTA SE RECUPERA LA CALMA\nDOBLE TOQUE ADELANTE: CORRE · EN EL AIRE: DA VUELTA\nMANTÉN 1 CON DIRECCIÓN: GOLPE CARGADO\nARRIBA + 1: GOLPE HACIA ARRIBA · ABAJO + 1: BARRIDA\nEN EL AIRE ABAJO + 1: PISOTÓN\n1 + 2 CON LA BARRA DE CALMA LLENA: REMEZÓN',
     W / 2,
     128,
     1,
@@ -1933,7 +1941,7 @@ function drawTitle(s, g, t) {
   g.fillStyle(K, 0.7).fillRect(0, 214, W, 26);
   if (((t / 450) | 0) % 2) text(g, 'PRESIONA START', W / 2, 217, 2, BLUE);
   const r = s.records;
-  const pages = [CHARS.length + ' PERSONAJES · ' + STAGES.length + ' MAPAS · 2 JUGADORES', r.rey ? `REY DEL MUEBLE: ${r.rey.n} · ${r.rey.r} SEGUIDAS` : 'REY DEL MUEBLE: SE BUSCA'].concat(
+  const pages = [r.rey ? `REY DEL MUEBLE: ${r.rey.n} · ${r.rey.r} SEGUIDAS` : 'REY DEL MUEBLE: SE BUSCA'].concat(
     r.top.slice(0, 3).map((e, i) => `${i + 1}. ${e.n}  ${e.s} PTS  GRADO ${e.g}`),
   );
   text(g, pages[((t / 2500) | 0) % pages.length], W / 2, 232, 1, WHITE);
@@ -1943,6 +1951,7 @@ function drawSelect(s, g, t) {
   g.fillStyle(K, 0.92).fillRect(0, 0, W, H);
   text(g, 'ELIGE TU PERSONAJE', W / 2, 6, 2, YEL);
   const same = s.sel[0].on && s.sel[1].on && s.sel[0].pick === s.sel[1].pick;
+  const cp = copyIdx(s.sel);
   CHARS.forEach((c, k) => {
     const x0 = 8 + k * 76;
     const y0 = 26;
@@ -1952,16 +1961,19 @@ function drawSelect(s, g, t) {
     picked.forEach((i, n) => g.lineStyle(2, PCOL[i]).strokeRect(x0 + 2 + n * 3, y0 + 1 + n * 3, 72 - n * 6, 110 - n * 6));
     const ready = picked.some((i) => s.sel[i].ok);
     const bounce = picked.length && !ready ? Math.round(Math.abs(Math.sin(t / 150)) * -4) : 0;
-    drawChar(g, c, ready ? 'win' : 'idle0', cx, y0 + 86 + bounce, 1, c.pal, 3);
+    if (same && picked.length > 1)
+      [0, 1].forEach((i) => {
+        const cc = i === cp ? copyOf(c) : c;
+        drawChar(g, cc, s.sel[i].ok ? 'win' : 'idle0', cx + (i ? 17 : -17), y0 + 86, 1, cc.pal, 2);
+      });
+    else drawChar(g, c, ready ? 'win' : 'idle0', cx, y0 + 86 + bounce, 1, c.pal, 3);
     text(g, c.n, cx, y0 + 88, 2, WHITE);
     text(g, c.t, cx, y0 + 102, 1, 0xa7a7c7);
   });
   s.sel.forEach((e, i) => {
     const x = i ? W - 8 : 8;
     const al = i ? 1 : 0;
-    // El que confirma segundo con el mismo personaje es la copia.
-    const later = (e.ok && e.at) > (s.sel[1 - i].at || 0) || (!e.ok && s.sel[1 - i].ok) || (!e.ok && !s.sel[1 - i].ok && i);
-    text(g, 'P' + (i + 1) + (e.on ? ': ' + CHARS[e.pick].n + (same && later ? ' (1)' : '') : ''), x, 150, 2, PCOL[i], al);
+    text(g, 'P' + (i + 1) + (e.on ? ': ' + CHARS[e.pick].n + (same && i === cp ? ' (1)' : '') : ''), x, 150, 2, PCOL[i], al);
     text(g, !e.on ? 'START PARA JUGAR' : e.ok ? '¡LISTO!' : 'PALANCA ELIGE · 1 OK', x, 168, 1, WHITE, al);
   });
   text(g, '1 GOLPE · 2 AGARRA · 3 PARRY', W / 2, 214, 1, 0xa7a7c7);
@@ -1983,7 +1995,7 @@ function drawEnd(s, g, t) {
     const l = e.letters.map((c, k) => (k === e.pos && !e.done && ((t / 200) | 0) % 2 ? '_' : String.fromCharCode(65 + c))).join(' ');
     text(g, `P${e.f.i + 1} INICIALES: ${l}${e.done ? ' ¡LISTO!' : ''}`, W / 2, 166 + n * 16, 2, PCOL[e.f.i]);
   });
-  text(g, s.entries.length && !s.saved ? 'ARRIBA/ABAJO LETRA · B1 SIGUIENTE' : 'START: ¡REVANCHA!', W / 2, 224, 1, BLUE);
+  text(g, s.entries.length && !s.saved ? 'ARRIBA/ABAJO LETRA · 1 SIGUIENTE' : 'START: ¡REVANCHA!', W / 2, 224, 1, BLUE);
 }
 
 // ---------- Controles ----------
@@ -2095,8 +2107,6 @@ function sfx(s, k, n) {
       tone(s, 'sawtooth', 110 + (n || 0), 35, 0.3, 0.35, at);
     } else if (k === 'jump') {
       tone(s, 'square', 300, 640, 0.08, 0.1, at);
-    } else if (k === 'dodge') {
-      noise(s, 0.12, 0.25, 3000, 'highpass', at);
     } else if (k === 'whiff') {
       noise(s, 0.06, 0.12, 2500, 'highpass', at);
     } else if (k === 'parry') {
