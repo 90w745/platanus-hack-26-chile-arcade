@@ -1,15 +1,16 @@
-// ¿SE MOVIÓ? — Temblor Grado 8
+// ¿SE MOVIÓ? — Temblor hasta el grado 12
 // Pelea de dos en Santiago mientras tiembla cada vez más fuerte.
-// Bájale la vida y sácalo de la pantalla antes de que el temblor te saque a ti: no hay reloj, pierde el que cae sin vida.
+// Bájale la vida y sácalo de la pantalla antes de que el temblor te saque a ti: no hay reloj, pierde el que se queda sin vidas.
 
 // Todo va dentro de una función para que el minificador acorte también los nombres de arriba.
 (() => {
 const W = 320;
 const H = 240;
 const STORAGE_KEY = 'se-movio-records-v1';
-// La vida es lo que falta para este susto: cada golpe y cada caída suman, y sin vida el golpe saca volando.
+// La vida es lo que falta para este susto: cada golpe suma, y sin vida el golpe saca volando.
 const MAX_SUSTO = 100;
-const FALL_SUSTO = 25;
+// Cada caída gasta una vida y se vuelve con la barra llena.
+const LIVES = 3;
 // Un golpe asusta una parte de su daño: así la vida alcanza para llegar a los grados fuertes.
 const HIT_SUSTO = 0.23;
 // La vida que muestra la barra: sin vida es cero, aunque el susto siga subiendo.
@@ -724,6 +725,7 @@ function makeFighter(s, i, cpu, ci) {
     run: 0,
     tap: { d: 0, t: -1e9 },
     susto: 0,
+    lives: LIVES,
     vt: 1,
     act: null,
     stun: 0,
@@ -820,10 +822,10 @@ function simulate(s, dt) {
   if (s.help > 0) s.help -= dt * 1000;
   if (s.mode === 'end') return;
 
-  // Pierde el que cae sin vida. Si caen los dos en el mismo cuadro, gana el con menos susto.
+  // Pierde el que se queda sin vidas. Si se quedan sin vidas los dos en el mismo cuadro, gana el de más puntos.
   const [a, b] = s.f;
-  const ko = s.f.filter((f) => checkOut(s, f) && f.susto >= MAX_SUSTO);
-  if (ko.length) endMatch(s, ko.length > 1 ? (a.susto <= b.susto ? a : b) : s.f[1 - ko[0].i]);
+  const ko = s.f.filter((f) => checkOut(s, f) && f.lives < 1);
+  if (ko.length) endMatch(s, ko.length > 1 ? (score(a) < score(b) ? b : a) : s.f[1 - ko[0].i]);
 }
 
 function humanIntent(s, f) {
@@ -969,7 +971,8 @@ function stepFighter(s, f, o, inp, dt) {
     f.refugio = Math.max(0, f.refugio - ms);
   }
   const nx = f.x + s.lat.dir * 8;
-  if (s.lat.k && f.ground && !safe && (s.g > 10 || (nx > f.plat.x1 && nx < f.plat.x2 && !inHole(f.plat, nx)))) {
+  // Al reaparecer, mientras parpadea, el piso no lo arrastra: alcanza a pararse.
+  if (s.lat.k && f.ground && !safe && f.inv <= 0 && (s.g > 10 || (nx > f.plat.x1 && nx < f.plat.x2 && !inHole(f.plat, nx)))) {
     f.x += (s.lat.dir * s.lat.k * 40 * dt) / c.wt;
     // Polvo que queda atrás en los pies: dice hacia dónde arrastra el piso.
     if (Math.random() < s.lat.k / 3) s.parts.push({ x: f.x, y: f.y - 2, vx: -s.lat.dir * 20, vy: -12, l: 0.4, c: 0xd6bd86, z: 2, ng: 1 });
@@ -1010,22 +1013,10 @@ function stepFighter(s, f, o, inp, dt) {
   }
   if (wasGround && !f.ground && f.vy >= 0 && !f.jumping) f.coyote = 80;
 
-  // La grieta no se traga a nadie con vida: lo escupe hacia un lado y lo asusta. Sin vida, se lo traga.
+  // En la grieta se cae: las paredes no dejan salir de lado.
   const fl = s.plats[0];
   const h = f.y > fl.y + 2 && f.x > fl.x1 - 3 && f.x < fl.x2 + 3 && fl.holes && fl.holes.find((h) => f.x > h[0] - 12 && f.x < h[1] + 12);
-  // Adentro, las paredes de la grieta no dejan salir de lado.
   if (h) f.x = Phaser.Math.Clamp(f.x, h[0] + 2, h[1] - 2);
-  if (h && f.y > fl.y + 12 && f.susto < MAX_SUSTO) {
-    f.susto += FALL_SUSTO / 2;
-    f.y = fl.y + 12;
-    f.vy = -360;
-    f.vx = f.x < (h[0] + h[1]) / 2 ? -100 : 100;
-    f.stun = 250;
-    f.jumps = 1;
-    puff(s, f.x, fl.y, 10, 0x8a8a9c);
-    sfx(s, 'thud');
-    s.kick = 2;
-  }
 
   // La parrilla quema.
   if (f.ground && f.plat.hot) {
@@ -1199,7 +1190,6 @@ function hit(s, t, dir, dmg, base, growth, ang, by) {
   t.stun = Math.min(700, 120 + t.susto * 1.4);
   const v = s.f[1 - t.i];
   if (v.grabbedBy === t) v.grabbedBy = null;
-  if (t.susto > v.susto + 40) t.behind = true;
   t.act = null;
   t.ground = false;
   t.spiked = false;
@@ -1254,7 +1244,8 @@ function flash(s, a) {
 }
 
 function gainCalma(s, f, n) {
-  const losing = f.susto > s.f[1 - f.i].susto + 30;
+  const o = s.f[1 - f.i];
+  const losing = f.lives < o.lives || f.susto > o.susto + 30;
   f.calma = Math.min(100, f.calma + n * (losing ? 1.5 : 1));
 }
 
@@ -1263,14 +1254,15 @@ function checkOut(s, f) {
   if (f.out > 0) return false;
   if (f.x > -30 && f.x < W + 30 && f.y < H + 40 && f.y > -120) return false;
   const o = s.f[1 - f.i];
-  f.susto += FALL_SUSTO;
+  f.lives--;
+  f.susto = 0;
   f.out = 900;
   f.act = null;
   f.grabbedBy = null;
   dropHold(f);
   if (o.grabbedBy === f) o.grabbedBy = null;
   o.base += 1000;
-  if (f.susto > o.susto + 40) f.behind = true;
+  if (f.lives < o.lives - 1) f.behind = true;
   const ex = Phaser.Math.Clamp(f.x, 4, W - 4);
   const ey = Phaser.Math.Clamp(f.y, 4, H - 4);
   for (let k = 0; k < 3; k++) puff(s, ex, ey, 12, [WHITE, YEL, PCOL[f.i]][k]);
@@ -1385,8 +1377,9 @@ function updateQuake(s, dt) {
   }
   if (g > 4) {
     s.dropT -= ms;
-    if (s.dropT <= 0 && s.objs.length < 7) {
-      s.dropT = 7000 / (g - 2.3);
+    // Caen pocas: una cada 4,4 s en el grado 5 y cada 1,2 s en el 12.
+    if (s.dropT <= 0 && s.objs.length < 5) {
+      s.dropT = 12000 / (g - 2.3);
       const kinds = s.st.drops;
       spawnObj(s, kinds[(Math.random() * kinds.length) | 0], fl.x1 + 20 + Math.random() * (fl.x2 - fl.x1 - 40), -10);
     }
@@ -2043,13 +2036,15 @@ function drawHud(s, t) {
     g.fillStyle(K).fillRect(bx + 1, 13, 112, 7);
     g.fillStyle(RED).fillRect(i ? bx + 113 - 112 * f.vt : bx + 1, 13, 112 * f.vt, 7);
     g.fillStyle(v < 0.3 && ((t / 150) | 0) % 2 ? WHITE : PCOL[i]).fillRect(i ? bx + 113 - 112 * v : bx + 1, 13, 112 * v, 7);
-    spr(g, f.c.head[1], i ? W - 14 : 14, 24, i ? -1 : 1, f.c.pal, f.c.head[0]);
+    // Una cabeza por vida.
+    for (let k = 0; k < f.lives; k++) spr(g, f.c.head[1], i ? W - 14 - k * 14 : 14 + k * 14, 24, i ? -1 : 1, f.c.pal, f.c.head[0]);
     const full = f.calma >= 100;
-    const cx = i ? W - 72 : 26;
+    const lx = 14 + LIVES * 14;
+    const cx = i ? W - lx - 46 : lx;
     g.fillStyle(WHITE).fillRect(cx, 26, 46, 5);
     g.fillStyle(K).fillRect(cx + 1, 27, 44, 3);
     g.fillStyle(full ? (((t / 100) | 0) % 2 ? YEL : WHITE) : PCOL[i]).fillRect(cx + 1, 27, 0.44 * f.calma, 3);
-    text(g, full ? '1+2!' : 'CALMA', i ? W - 26 : 26, 33, full ? 2 : 1, full ? YEL : WHITE, al);
+    text(g, full ? '1+2!' : 'CALMA', i ? W - lx : lx, 33, full ? 2 : 1, full ? YEL : WHITE, al);
     if (f.comboShow > 0) text(g, f.combo + ' GOLPES', x, 46, 1, YEL, al);
   });
 
@@ -2065,7 +2060,7 @@ function drawHud(s, t) {
 function drawControls(g, t) {
   g.fillStyle(K).fillRect(0, 0, W, 214);
   text(g, 'CÓMO SE JUEGA', W / 2, 8, 2, YEL);
-  text(g, 'GOLPES Y CAÍDAS QUITAN VIDA · SIN VIDA, UN GOLPE LO SACA', W / 2, 26, 1, WHITE);
+  text(g, `GOLPES QUITAN VIDA · SIN VIDA, UN GOLPE LO SACA · ${LIVES} CAÍDAS Y PIERDES`, W / 2, 26, 1, WHITE);
   const tilt = Math.round(Math.sin(t / 300) * 3);
   g.fillStyle(0x444455).fillCircle(28, 52, 8);
   g.lineStyle(3, WHITE).lineBetween(28, 52, 28 + tilt, 42);
